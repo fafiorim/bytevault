@@ -42,9 +42,15 @@ export FSS_REGION=us-1
 ```bash
 docker build -t bytevault:latest .
 docker run -d \
-  -p 3000:3000 -p 3001:3001 \
+  -p 3000:3000 \
+  -e FSS_API_ENDPOINT="antimalware.us-1.cloudone.trendmicro.com:443" \
   -e FSS_API_KEY=$FSS_API_KEY \
-  -e FSS_REGION=$FSS_REGION \
+  -e FSS_CUSTOM_TAGS="env:production,team:security,project:demo" \
+  -e ADMIN_USERNAME="admin" \
+  -e ADMIN_PASSWORD="admin123" \
+  -e USER_USERNAME="user" \
+  -e USER_PASSWORD="admin123" \
+  -e FSS_CUSTOM_TAGS="env:bytevault,team:security" \
   --name bytevault \
   bytevault:latest
 ```
@@ -140,7 +146,7 @@ curl -X DELETE http://localhost:3000/files/filename.txt -u "admin:admin123"
 Mount volumes for persistent storage:
 ```bash
 docker run -d \
-  -p 3000:3000 -p 3001:3001 \
+  -p 3000:3000 \
   -v /path/on/host:/app/uploads \
   -e FSS_API_KEY=$FSS_API_KEY \
   -e FSS_REGION=$FSS_REGION \
