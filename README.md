@@ -5,6 +5,7 @@ ByteVault is a containerized file storage application with malware scanning capa
 ## Features
 - Web interface for file management
 - Real-time malware scanning using File Security Services
+- Configurable security modes (Prevent/Log Only)
 - File upload with automated scanning
 - Scan history and status monitoring
 - Health monitoring dashboard
@@ -25,7 +26,8 @@ bytevault/
     ├── login.html        # Login interface
     ├── dashboard.html    # File management interface
     ├── scan-results.html # Scan history interface
-    ├── health-status.html# System health monitoring
+    ├── health-status.html # System health monitoring
+    ├── configuration.html # System configuration page
     ├── styles.css        # Application styling
     └── script.js         # Client-side functionality
 ```
@@ -41,14 +43,13 @@ export FSS_API_KEY=your_api_key
 ```bash
 docker build -t bytevault:latest .
 docker run -d \
-  -p 3000:3000 \
+  -p 3000:3000 -p 3001:3001 \
   -e FSS_API_ENDPOINT="antimalware.us-1.cloudone.trendmicro.com:443" \
   -e FSS_API_KEY=$FSS_API_KEY \
-  -e FSS_CUSTOM_TAGS="env:production,team:security,project:demo" \
   -e ADMIN_USERNAME="admin" \
   -e ADMIN_PASSWORD="admin123" \
   -e USER_USERNAME="user" \
-  -e USER_PASSWORD="admin123" \
+  -e USER_PASSWORD="user123" \
   -e FSS_CUSTOM_TAGS="env:bytevault,team:security" \
   --name bytevault \
   bytevault:latest
@@ -57,6 +58,22 @@ docker run -d \
 3. Access the application:
 - Web Interface: http://localhost:3000
 - API Endpoints: http://localhost:3000/api/* (with Basic Auth)
+
+## Security Modes
+
+ByteVault supports two security modes:
+
+### Prevent Mode (Default)
+- Blocks and deletes malicious files immediately
+- Notifies users when malware is detected
+- Provides highest security level
+- Files marked as malicious are not stored
+
+### Log Only Mode
+- Allows all file uploads
+- Logs and marks malicious files
+- Warns users about detected threats
+- Useful for testing and monitoring
 
 ## API Reference
 
@@ -84,12 +101,35 @@ curl -X POST http://localhost:3000/upload \
     }
 }
 
-# Example Response (Malware Detected)
+# Example Response (Malware Detected - Prevent Mode)
 {
-    "error": "Malware detected",
+    "error": "Malware detected - Upload prevented",
     "details": "Malware detection details",
     "scanId": "20250203162048-file.txt"
 }
+
+# Example Response (Malware Detected - Log Only Mode)
+{
+    "message": "File uploaded but marked as unsafe",
+    "filename": "1738463939938-malware.txt",
+    "warning": "Malware detected",
+    "scanResult": {
+        "isSafe": false
+    }
+}
+```
+
+#### Get Configuration
+```bash
+curl http://localhost:3000/api/config -u "admin:admin123"
+```
+
+#### Update Configuration
+```bash
+curl -X POST http://localhost:3000/api/config \
+  -u "admin:admin123" \
+  -H "Content-Type: application/json" \
+  -d '{"securityMode": "logOnly"}'
 ```
 
 #### List Files
@@ -117,6 +157,8 @@ curl -X DELETE http://localhost:3000/files/filename.txt -u "admin:admin123"
 | Variable | Description | Default |
 |----------|-------------|---------|
 | FSS_API_KEY | File Security Services API Key | Required |
+| FSS_API_ENDPOINT | FSS API Endpoint | antimalware.us-1.cloudone.trendmicro.com:443 |
+| FSS_CUSTOM_TAGS | Custom tags for scans | env:bytevault,team:security |
 | ADMIN_USERNAME | Admin username | admin |
 | ADMIN_PASSWORD | Admin password | admin123 |
 | USER_USERNAME | Regular user username | user |
@@ -139,15 +181,20 @@ curl -X DELETE http://localhost:3000/files/filename.txt -u "admin:admin123"
 - Scanner status
 - Scan statistics
 
+### Configuration
+- Security mode management
+- System settings
+- Real-time updates
+
 ## Volumes and Persistence
 
 Mount volumes for persistent storage:
 ```bash
 docker run -d \
-  -p 3000:3000 \
+  -p 3000:3000 -p 3001:3001 \
   -v /path/on/host:/app/uploads \
   -e FSS_API_KEY=$FSS_API_KEY \
-  -e FSS_REGION=$FSS_REGION \
+  -e FSS_API_ENDPOINT="antimalware.us-1.cloudone.trendmicro.com:443" \
   --name bytevault \
   bytevault:latest
 ```
@@ -157,11 +204,13 @@ docker run -d \
 ### Scanner Issues
 - Verify FSS_API_KEY is set correctly
 - Check scanner logs: `docker logs bytevault | grep scanner`
+- Verify both ports (3000 and 3001) are accessible
 
 ### Common Issues
-- Port conflicts: Check port 3000
+- Port conflicts: Check ports 3000 and 3001
 - Authentication errors: Verify credentials
 - Upload fails: Check file permissions and scanner status
+- Configuration not saving: Check user permissions
 
 View logs:
 ```bash

@@ -8,7 +8,12 @@ const axios = require('axios');
 const app = express();
 const port = 3000;
 
-// Get environment variables
+// System Configuration
+let systemConfig = {
+    securityMode: 'prevent', // 'prevent' or 'logOnly'
+};
+
+// Environment variables
 const adminUsername = process.env.ADMIN_USERNAME || 'admin';
 const adminPassword = process.env.ADMIN_PASSWORD || 'admin123';
 const userUsername = process.env.USER_USERNAME || 'user';
@@ -27,7 +32,7 @@ const storage = multer.diskStorage({
 
 const upload = multer({ storage: storage });
 
-// Basic Auth middleware for API endpoints
+// Basic Auth middleware
 const basicAuth = (req, res, next) => {
     const authHeader = req.headers.authorization;
 
@@ -83,7 +88,6 @@ app.post('/upload', basicAuth, upload.single('file'), async (req, res) => {
         const fileData = fs.readFileSync(filePath);
         
         try {
-            // Scan the file
             const scanResponse = await axios.post('http://localhost:3001/scan', fileData, {
                 headers: {
                     'Content-Type': 'application/octet-stream',
@@ -92,44 +96,45 @@ app.post('/upload', basicAuth, upload.single('file'), async (req, res) => {
             });
 
             const scanResult = JSON.parse(scanResponse.data.message);
-
-            // Check if malware was found
             const isMalwareFound = scanResult.scanResult === 1 || (scanResult.foundMalwares && scanResult.foundMalwares.length > 0);
             
-            if (isMalwareFound) {
-                // Delete the file if malware is found
-                fs.unlinkSync(filePath);
-
-                // Store scan result for reporting
-                storeScanResult({
-                    filename: req.file.originalname,
-                    size: req.file.size,
-                    mimetype: req.file.mimetype,
-                    isSafe: false,
-                    scanId: scanResponse.data.scanId,
-                    tags: scanResponse.data.tags,
-                    timestamp: new Date()
-                });
-
-                return res.status(400).json({
-                    error: 'Malware detected',
-                    details: scanResponse.data.message,
-                    scanId: scanResponse.data.scanId
-                });
-            }
-
-            // If file is safe, store the scan result
-            storeScanResult({
+            // Store scan result
+            const scanRecord = {
                 filename: req.file.originalname,
                 size: req.file.size,
                 mimetype: req.file.mimetype,
-                isSafe: true,
+                isSafe: !isMalwareFound,
                 scanId: scanResponse.data.scanId,
                 tags: scanResponse.data.tags,
                 timestamp: new Date()
-            });
+            };
+            
+            if (isMalwareFound) {
+                // Handle malware based on security mode
+                if (systemConfig.securityMode === 'prevent') {
+                    fs.unlinkSync(filePath);
+                    storeScanResult(scanRecord);
+                    return res.status(400).json({
+                        error: 'Malware detected - Upload prevented',
+                        details: scanResponse.data.message,
+                        scanId: scanResponse.data.scanId
+                    });
+                } else {
+                    // Log Only mode - keep file but mark as unsafe
+                    storeScanResult(scanRecord);
+                    return res.json({
+                        message: 'File uploaded but marked as unsafe',
+                        filename: req.file.filename,
+                        size: req.file.size,
+                        mimetype: req.file.mimetype,
+                        warning: 'Malware detected',
+                        scanResult: scanResponse.data
+                    });
+                }
+            }
 
-            // Return success response
+            // Safe file handling
+            storeScanResult(scanRecord);
             res.json({ 
                 message: 'File uploaded and scanned successfully',
                 filename: req.file.filename,
@@ -139,7 +144,7 @@ app.post('/upload', basicAuth, upload.single('file'), async (req, res) => {
             });
 
         } catch (scanError) {
-            // On scan error, delete file and return error
+            // Always delete file on scan error
             fs.unlinkSync(filePath);
             console.error('Scan error:', scanError);
             return res.status(500).json({ 
@@ -149,7 +154,6 @@ app.post('/upload', basicAuth, upload.single('file'), async (req, res) => {
         }
     } catch (error) {
         console.error('Upload error:', error);
-        // Cleanup file if it exists
         if (req.file && fs.existsSync(req.file.path)) {
             fs.unlinkSync(req.file.path);
         }
@@ -190,7 +194,6 @@ app.delete('/files/:filename', basicAuth, (req, res) => {
             if (err) {
                 return res.status(500).json({ error: 'Error deleting file' });
             }
-            // Remove the file's scan results
             scanResults = scanResults.filter(result => result.filename !== req.params.filename);
             res.json({ message: 'File deleted successfully' });
         });
@@ -200,11 +203,28 @@ app.delete('/files/:filename', basicAuth, (req, res) => {
     }
 });
 
+// Configuration endpoints
+app.get('/api/config', basicAuth, (req, res) => {
+    res.json(systemConfig);
+});
+
+app.post('/api/config', basicAuth, (req, res) => {
+    const { securityMode } = req.body;
+    
+    if (securityMode && ['prevent', 'logOnly'].includes(securityMode)) {
+        systemConfig.securityMode = securityMode;
+        res.json({ message: 'Configuration updated', config: systemConfig });
+    } else {
+        res.status(400).json({ error: 'Invalid configuration' });
+    }
+});
+
 app.get('/health', basicAuth, (req, res) => {
     res.json({
         status: 'healthy',
         timestamp: new Date().toISOString(),
         uptime: process.uptime(),
+        securityMode: systemConfig.securityMode,
         scanResults: {
             total: scanResults.length,
             safe: scanResults.filter(r => r.isSafe).length,
@@ -213,16 +233,14 @@ app.get('/health', basicAuth, (req, res) => {
     });
 });
 
-// API endpoint for scan results
 app.get('/api/scan-results', basicAuth, (req, res) => {
     res.json(scanResults);
 });
 
-// Serve static files
+// Static files and web routes
 app.use(express.static('public'));
 app.use('/uploads', basicAuth, express.static('uploads'));
 
-// Web interface routes
 app.get('/', (req, res) => {
     if (req.session.user) {
         res.redirect('/dashboard');
@@ -258,6 +276,7 @@ app.get('/logout', (req, res) => {
     res.redirect('/login');
 });
 
+// Web interface routes
 app.get('/dashboard', (req, res) => {
     if (!req.session.user) {
         return res.redirect('/login');
@@ -279,6 +298,13 @@ app.get('/scan-results', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'scan-results.html'));
 });
 
+app.get('/config', (req, res) => {
+    if (!req.session.user) {
+        return res.redirect('/login');
+    }
+    res.sendFile(path.join(__dirname, 'public', 'configuration.html'));
+});
+
 // Create uploads directory if it doesn't exist
 if (!fs.existsSync('./uploads')) {
     fs.mkdirSync('./uploads');
@@ -287,4 +313,5 @@ if (!fs.existsSync('./uploads')) {
 // Start server
 app.listen(port, '0.0.0.0', () => {
     console.log(`ByteVault running on port ${port}`);
+    console.log('Security Mode:', systemConfig.securityMode);
 });

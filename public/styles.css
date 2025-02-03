@@ -321,3 +321,44 @@ button:disabled {
     background: #fee2e2;
     color: #991b1b;
 }
+
+/* Add to styles.css */
+
+/* Radio buttons */
+input[type="radio"] {
+    width: 1.2rem;
+    height: 1.2rem;
+    margin-right: 0.5rem;
+    accent-color: var(--accent-color);
+}
+
+/* Button states */
+button:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+}
+
+/* Loading state */
+.loading {
+    opacity: 0.7;
+    pointer-events: none;
+    position: relative;
+}
+
+.loading::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 1rem;
+    height: 1rem;
+    margin: -0.5rem 0 0 -0.5rem;
+    border: 2px solid #fff;
+    border-radius: 50%;
+    border-top-color: transparent;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
