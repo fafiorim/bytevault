@@ -35,7 +35,6 @@ bytevault/
 1. Set up File Security Services:
 ```bash
 export FSS_API_KEY=your_api_key
-export FSS_REGION=us-1
 ```
 
 2. Build and run:
@@ -118,7 +117,6 @@ curl -X DELETE http://localhost:3000/files/filename.txt -u "admin:admin123"
 | Variable | Description | Default |
 |----------|-------------|---------|
 | FSS_API_KEY | File Security Services API Key | Required |
-| FSS_REGION | FSS Region | us-1 |
 | ADMIN_USERNAME | Admin username | admin |
 | ADMIN_PASSWORD | Admin password | admin123 |
 | USER_USERNAME | Regular user username | user |
@@ -159,10 +157,9 @@ docker run -d \
 ### Scanner Issues
 - Verify FSS_API_KEY is set correctly
 - Check scanner logs: `docker logs bytevault | grep scanner`
-- Verify scanner service is running on port 3001
 
 ### Common Issues
-- Port conflicts: Check ports 3000 and 3001
+- Port conflicts: Check port 3000
 - Authentication errors: Verify credentials
 - Upload fails: Check file permissions and scanner status
 
