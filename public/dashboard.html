@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ByteVault - Dashboard</title>
+    <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+    <div id="nav-container"></div>
+
+    <div class="container">
+        <div class="upload-section">
+            <h2>Upload Files</h2>
+            <form id="uploadForm" class="upload-form">
+                <input type="file" id="fileInput" required>
+                <button type="submit" id="uploadButton">Upload</button>
+                <div id="uploadStatus" class="status-message"></div>
+            </form>
+        </div>
+
+        <div class="files-section">
+            <h2>Your Files</h2>
+            <div id="fileList" class="file-list"></div>
+        </div>
+    </div>
+
+    <script>
+        const username = localStorage.getItem('username');
+        const password = localStorage.getItem('password');
+
+        // Check authentication
+        if (!username || !password) {
+            window.location.href = '/login';
+        }
+
+        // Load navigation
+        fetch('/components/nav.html')
+            .then(response => response.text())
+            .then(html => {
+                document.getElementById('nav-container').innerHTML = html;
+                const userInfo = document.getElementById('userInfo');
+                if (userInfo) {
+                    userInfo.textContent = `Logged in as: ${username}`;
+                }
+                document.querySelector('a[href="/dashboard"]')?.classList.add('active');
+            })
+            .catch(error => console.error('Error loading navigation:', error));
+
+        function loadFiles() {
+            fetch('/files', {
+                headers: {
+                    'Authorization': 'Basic ' + btoa(username + ':' + password)
+                }
+            })
+            .then(response => response.json())
+            .then(files => {
+                const fileList = document.getElementById('fileList');
+                fileList.innerHTML = files.length === 0 ? 
+                    '<div class="no-files">No files uploaded yet</div>' :
+                    files.map(file => `
+                        <div class="file-item">
+                            <div class="file-info">
+                                <span class="file-name">${file.name}</span>
+                                <span class="file-details">
+                                    Size: ${formatFileSize(file.size)} | 
+                                    Uploaded: ${new Date(file.created).toLocaleString()}
+                                </span>
+                            </div>
+                            <div class="file-actions">
+                                <button onclick="deleteFile('${file.name}')" class="delete-btn">Delete</button>
+                            </div>
+                        </div>
+                    `).join('');
+            })
+            .catch(error => {
+                console.error('Error loading files:', error);
+                document.getElementById('fileList').innerHTML = 
+                    '<div class="error-message">Error loading files</div>';
+            });
+        }
+
+        function formatFileSize(bytes) {
+            const units = ['B', 'KB', 'MB', 'GB'];
+            let size = bytes;
+            let unitIndex = 0;
+            while (size >= 1024 && unitIndex < units.length - 1) {
+                size /= 1024;
+                unitIndex++;
+            }
+            return `${size.toFixed(1)} ${units[unitIndex]}`;
+        }
+
+        document.getElementById('uploadForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const fileInput = document.getElementById('fileInput');
+            const uploadButton = document.getElementById('uploadButton');
+            const statusDiv = document.getElementById('uploadStatus');
+
+            if (!fileInput.files[0]) {
+                statusDiv.textContent = 'Please select a file';
+                statusDiv.className = 'status-message error';
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+            
+            uploadButton.disabled = true;
+            statusDiv.textContent = 'Uploading...';
+            statusDiv.className = 'status-message';
+
+            fetch('/upload', {
+                method: 'POST',
+                headers: {
+                    'Authorization': 'Basic ' + btoa(username + ':' + password)
+                },
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                statusDiv.textContent = 'File uploaded successfully!';
+                statusDiv.className = 'status-message success';
+                fileInput.value = '';
+                loadFiles();
+            })
+            .catch(error => {
+                statusDiv.textContent = 'Upload failed: ' + error.message;
+                statusDiv.className = 'status-message error';
+            })
+            .finally(() => {
+                uploadButton.disabled = false;
+            });
+        });
+
+        window.deleteFile = function(filename) {
+            if (!confirm(`Are you sure you want to delete ${filename}?`)) return;
+
+            fetch(`/files/${filename}`, {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': 'Basic ' + btoa(username + ':' + password)
+                }
+            })
+            .then(response => response.json())
+            .then(() => loadFiles())
+            .catch(error => console.error('Delete error:', error));
+        }
+
+        window.handleLogout = function() {
+            localStorage.removeItem('username');
+            localStorage.removeItem('password');
+        }
+
+        loadFiles();
+    </script>
+</body>
+</html>
