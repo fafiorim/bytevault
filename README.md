@@ -5,13 +5,14 @@ ByteVault is a containerized file storage application with malware scanning capa
 ## Features
 - Web interface for file management
 - Real-time malware scanning using File Security Services
-- Configurable security modes (Prevent/Log Only)
+- Configurable security modes (Prevent/Log Only/Disabled)
 - File upload with automated scanning
 - Scan history and status monitoring
 - Health monitoring dashboard
 - RESTful API with Basic Authentication
 - Session-based web authentication
 - Docker containerization
+- Admin-only configuration management
 
 ## Directory Structure
 ```
@@ -51,6 +52,7 @@ docker run -d \
   -e USER_USERNAME="user" \
   -e USER_PASSWORD="user123" \
   -e FSS_CUSTOM_TAGS="env:bytevault,team:security" \
+  -e SECURITY_MODE="prevent" \  # Optional: Override default disabled mode
   --name bytevault \
   bytevault:latest
 ```
@@ -61,9 +63,16 @@ docker run -d \
 
 ## Security Modes
 
-ByteVault supports two security modes:
+ByteVault supports three security modes:
 
-### Prevent Mode (Default)
+### Disabled Mode (Default)
+- Bypasses malware scanning
+- Files are uploaded directly without scanning
+- Maintains logging of uploads
+- Suitable for trusted environments or testing
+- Can be enabled/disabled by administrators only
+
+### Prevent Mode
 - Blocks and deletes malicious files immediately
 - Notifies users when malware is detected
 - Provides highest security level
@@ -80,7 +89,11 @@ ByteVault supports two security modes:
 ### Authentication
 All API endpoints use Basic Authentication. Default credentials:
 - Admin: username: `admin`, password: `admin123`
+  - Can modify system configuration
+  - Full access to all features
 - User: username: `user`, password: `user123`
+  - Cannot modify system configuration
+  - Can upload and manage files
 
 ### Endpoints
 
@@ -117,19 +130,31 @@ curl -X POST http://localhost:3000/upload \
         "isSafe": false
     }
 }
+
+# Example Response (Disabled Mode)
+{
+    "message": "File uploaded successfully (scanning disabled)",
+    "filename": "1738463939938-example.txt",
+    "size": 1234,
+    "mimetype": "text/plain",
+    "scanResult": {
+        "isSafe": true,
+        "message": "Scanning disabled"
+    }
+}
 ```
 
-#### Get Configuration
+#### Get Configuration (Admin Only)
 ```bash
 curl http://localhost:3000/api/config -u "admin:admin123"
 ```
 
-#### Update Configuration
+#### Update Configuration (Admin Only)
 ```bash
 curl -X POST http://localhost:3000/api/config \
   -u "admin:admin123" \
   -H "Content-Type: application/json" \
-  -d '{"securityMode": "logOnly"}'
+  -d '{"securityMode": "prevent"}'
 ```
 
 #### List Files
@@ -163,6 +188,7 @@ curl -X DELETE http://localhost:3000/files/filename.txt -u "admin:admin123"
 | ADMIN_PASSWORD | Admin password | admin123 |
 | USER_USERNAME | Regular user username | user |
 | USER_PASSWORD | Regular user password | user123 |
+| SECURITY_MODE | Default security mode (prevent/logOnly/disabled) | disabled |
 
 ## Web Interface
 
@@ -170,21 +196,25 @@ curl -X DELETE http://localhost:3000/files/filename.txt -u "admin:admin123"
 - File upload with real-time scanning
 - File listing and management
 - Delete functionality
+- Scan status indicators
 
 ### Scan Results
 - View scan history
-- Filter by safe/unsafe files
+- Filter by safe/unsafe/unscanned files
 - Detailed scan information
+- Scan status badges
 
 ### Health Status
 - System health monitoring
 - Scanner status
 - Scan statistics
+- Security mode status
 
-### Configuration
+### Configuration (Admin Only)
 - Security mode management
 - System settings
 - Real-time updates
+- Permission-based access control
 
 ## Volumes and Persistence
 
@@ -195,6 +225,7 @@ docker run -d \
   -v /path/on/host:/app/uploads \
   -e FSS_API_KEY=$FSS_API_KEY \
   -e FSS_API_ENDPOINT="antimalware.us-1.cloudone.trendmicro.com:443" \
+  -e SECURITY_MODE="prevent" \  # Optional: Override default mode
   --name bytevault \
   bytevault:latest
 ```
@@ -205,12 +236,14 @@ docker run -d \
 - Verify FSS_API_KEY is set correctly
 - Check scanner logs: `docker logs bytevault | grep scanner`
 - Verify both ports (3000 and 3001) are accessible
+- Check if security mode is not disabled
 
 ### Common Issues
 - Port conflicts: Check ports 3000 and 3001
 - Authentication errors: Verify credentials
 - Upload fails: Check file permissions and scanner status
-- Configuration not saving: Check user permissions
+- Configuration not saving: Verify admin permissions
+- Scanner not running: Check if security mode is not disabled
 
 View logs:
 ```bash
