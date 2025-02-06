@@ -12,6 +12,12 @@
             border-radius: 8px;
             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
             margin-top: 2rem;
+            transition: opacity 0.3s ease;
+        }
+
+        .config-section.disabled {
+            opacity: 0.7;
+            pointer-events: none;
         }
 
         .config-group {
@@ -36,12 +42,21 @@
             border-color: var(--accent-color);
         }
 
+        .config-option.default {
+            border: 2px solid #3498db;
+            background: #f8f9fa;
+        }
+
         .config-option label {
             display: flex;
             align-items: flex-start;
             gap: 1rem;
             cursor: pointer;
             width: 100%;
+        }
+
+        .config-option.disabled label {
+            cursor: not-allowed;
         }
 
         .config-option input[type="radio"] {
@@ -84,11 +99,47 @@
             color: #664d03;
         }
 
-        .status-message {
-            margin-top: 1rem;
+        .config-tag.disabled {
+            background: #e5e7eb;
+            color: #4b5563;
+        }
+
+        .config-tag.default {
+            background: #dbeafe;
+            color: #1e40af;
+            margin-left: 0.5rem;
+        }
+
+        .admin-notice {
+            background-color: #f8d7da;
+            color: #721c24;
             padding: 1rem;
             border-radius: 4px;
+            margin-bottom: 1rem;
+            border: 1px solid #f5c6cb;
+        }
+
+        .permission-info {
+            background-color: #e2e8f0;
+            padding: 1rem;
+            border-radius: 4px;
+            margin-bottom: 1rem;
+            font-size: 0.9rem;
+            color: #475569;
+        }
+
+        .button-section {
+            margin-top: 2rem;
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+
+        .status-message {
             display: none;
+            padding: 1rem;
+            border-radius: 4px;
+            margin-top: 1rem;
         }
 
         .status-message.success {
@@ -104,30 +155,44 @@
             color: #991b1b;
             border: 1px solid #f87171;
         }
-
-        .button-section {
-            margin-top: 2rem;
-            display: flex;
-            gap: 1rem;
-            align-items: center;
-        }
-
-        button {
-            width: auto;
-            min-width: 150px;
-        }
     </style>
 </head>
 <body>
     <div id="nav-container"></div>
 
     <div class="container">
-        <div class="config-section">
+        <div class="config-section" id="configSection">
             <h2>System Configuration</h2>
+            
+            <div id="adminNotice" class="admin-notice" style="display: none;">
+                Only administrators can modify system configuration. Please contact your administrator for changes.
+            </div>
+
+            <div id="permissionInfo" class="permission-info">
+                Current user role: <span id="userRole">Loading...</span>
+            </div>
             
             <div class="config-group">
                 <h3>Security Mode</h3>
                 
+                <div class="config-option" id="disabledOption">
+                    <label>
+                        <input type="radio" name="securityMode" value="disabled">
+                        <div class="config-option-content">
+                            <div class="config-title">
+                                Disabled Mode
+                                <span class="config-tag disabled">Disabled</span>
+                                <span class="config-tag default">Default</span>
+                            </div>
+                            <div class="config-description">
+                                No security scanning: Files are uploaded directly without malware scanning.
+                                Use this mode only in trusted environments where scanning is not required.
+                                Note: This is the default mode, scanning can be enabled by an administrator.
+                            </div>
+                        </div>
+                    </label>
+                </div>
+
                 <div class="config-option">
                     <label>
                         <input type="radio" name="securityMode" value="prevent">
@@ -161,23 +226,6 @@
                         </div>
                     </label>
                 </div>
-
-                <div class="config-option">
-                    <label>
-                        <input type="radio" name="securityMode" value="disabled">
-                        <div class="config-option-content">
-                            <div class="config-title">
-                                Disabled Mode
-                                <span class="config-tag" style="background: #e5e7eb; color: #4b5563;">Disabled</span>
-                            </div>
-                            <div class="config-description">
-                                No security scanning: Files are uploaded directly without malware scanning.
-                                Use this mode only in trusted environments where scanning is not required.
-                                Not recommended for production use.
-                            </div>
-                        </div>
-                    </label>
-                </div>
             </div>
 
             <div class="button-section">
@@ -195,7 +243,7 @@
             window.location.href = '/login';
         }
 
-        // Load navigation
+        // Load navigation and check if user is admin
         fetch('/components/nav.html')
             .then(response => response.text())
             .then(html => {
@@ -207,7 +255,7 @@
                 document.querySelector('a[href="/config"]')?.classList.add('active');
             });
 
-        // Load current configuration
+        // Load current configuration and check permissions
         function loadConfig() {
             fetch('/api/config', {
                 headers: {
@@ -216,7 +264,18 @@
             })
             .then(response => response.json())
             .then(config => {
+                // Update user role display
+                document.getElementById('userRole').textContent = config.isAdmin ? 'Administrator' : 'Regular User';
+                
+                // Set current security mode
                 document.querySelector(`input[name="securityMode"][value="${config.securityMode}"]`).checked = true;
+
+                // Handle non-admin users
+                if (!config.isAdmin) {
+                    document.getElementById('adminNotice').style.display = 'block';
+                    document.getElementById('configSection').classList.add('disabled');
+                    document.getElementById('saveButton').style.display = 'none';
+                }
             })
             .catch(error => {
                 showStatus('Error loading configuration', 'error');
@@ -238,12 +297,19 @@
                 },
                 body: JSON.stringify({ securityMode })
             })
-            .then(response => response.json())
+            .then(response => {
+                if (!response.ok) {
+                    return response.json().then(data => {
+                        throw new Error(data.error || 'Failed to update configuration');
+                    });
+                }
+                return response.json();
+            })
             .then(data => {
                 showStatus('Configuration saved successfully', 'success');
             })
             .catch(error => {
-                showStatus('Error saving configuration', 'error');
+                showStatus(error.message, 'error');
             })
             .finally(() => {
                 saveButton.disabled = false;
