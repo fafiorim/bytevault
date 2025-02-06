@@ -10,7 +10,7 @@ const port = 3000;
 
 // System Configuration
 let systemConfig = {
-    securityMode: 'prevent', // 'prevent' or 'logOnly'
+    securityMode: 'prevent', // 'prevent', 'logOnly', or 'disabled'
 };
 
 // Environment variables
@@ -85,6 +85,33 @@ app.post('/upload', basicAuth, upload.single('file'), async (req, res) => {
         }
 
         const filePath = path.join('./uploads', req.file.filename);
+
+        // If scanning is disabled, skip the scanning process
+        if (systemConfig.securityMode === 'disabled') {
+            const scanRecord = {
+                filename: req.file.originalname,
+                size: req.file.size,
+                mimetype: req.file.mimetype,
+                isSafe: true,
+                scanId: `SCAN_DISABLED_${Date.now()}`,
+                tags: ['scan_disabled'],
+                timestamp: new Date()
+            };
+            
+            storeScanResult(scanRecord);
+            return res.json({ 
+                message: 'File uploaded successfully (scanning disabled)',
+                filename: req.file.filename,
+                size: req.file.size,
+                mimetype: req.file.mimetype,
+                scanResult: {
+                    isSafe: true,
+                    message: 'Scanning disabled'
+                }
+            });
+        }
+        
+        // Normal scanning process
         const fileData = fs.readFileSync(filePath);
         
         try {
@@ -211,7 +238,7 @@ app.get('/api/config', basicAuth, (req, res) => {
 app.post('/api/config', basicAuth, (req, res) => {
     const { securityMode } = req.body;
     
-    if (securityMode && ['prevent', 'logOnly'].includes(securityMode)) {
+    if (securityMode && ['prevent', 'logOnly', 'disabled'].includes(securityMode)) {
         systemConfig.securityMode = securityMode;
         res.json({ message: 'Configuration updated', config: systemConfig });
     } else {
@@ -227,8 +254,9 @@ app.get('/health', basicAuth, (req, res) => {
         securityMode: systemConfig.securityMode,
         scanResults: {
             total: scanResults.length,
-            safe: scanResults.filter(r => r.isSafe).length,
-            unsafe: scanResults.filter(r => !r.isSafe).length
+            safe: scanResults.filter(r => r.isSafe && !r.tags.includes('scan_disabled')).length,
+            unsafe: scanResults.filter(r => !r.isSafe).length,
+            notScanned: scanResults.filter(r => r.tags.includes('scan_disabled')).length
         }
     });
 });
