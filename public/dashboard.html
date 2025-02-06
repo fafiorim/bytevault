@@ -29,12 +29,10 @@
         const username = localStorage.getItem('username');
         const password = localStorage.getItem('password');
 
-        // Check authentication
         if (!username || !password) {
             window.location.href = '/login';
         }
 
-        // Load navigation
         fetch('/components/nav.html')
             .then(response => response.text())
             .then(html => {
@@ -47,31 +45,72 @@
             })
             .catch(error => console.error('Error loading navigation:', error));
 
+        // Get current security mode
+        let securityMode = 'prevent';
+        fetch('/api/config', {
+            headers: {
+                'Authorization': 'Basic ' + btoa(username + ':' + password)
+            }
+        })
+        .then(response => response.json())
+        .then(config => {
+            securityMode = config.securityMode;
+        })
+        .catch(error => console.error('Error loading config:', error));
+
         function loadFiles() {
-            fetch('/files', {
+            // First get scan results to map to files
+            fetch('/api/scan-results', {
                 headers: {
                     'Authorization': 'Basic ' + btoa(username + ':' + password)
                 }
             })
             .then(response => response.json())
-            .then(files => {
+            .then(scanResults => {
+                const scanMap = new Map(scanResults.map(result => [result.filename, result]));
+                
+                // Then get file list
+                return fetch('/files', {
+                    headers: {
+                        'Authorization': 'Basic ' + btoa(username + ':' + password)
+                    }
+                })
+                .then(response => response.json())
+                .then(files => ({ files, scanMap }));
+            })
+            .then(({ files, scanMap }) => {
                 const fileList = document.getElementById('fileList');
                 fileList.innerHTML = files.length === 0 ? 
                     '<div class="no-files">No files uploaded yet</div>' :
-                    files.map(file => `
-                        <div class="file-item">
-                            <div class="file-info">
-                                <span class="file-name">${file.name}</span>
-                                <span class="file-details">
-                                    Size: ${formatFileSize(file.size)} | 
-                                    Uploaded: ${new Date(file.created).toLocaleString()}
-                                </span>
+                    files.map(file => {
+                        const scanResult = scanMap.get(file.name);
+                        let scanStatusHtml = '';
+                        
+                        if (scanResult) {
+                            if (scanResult.tags.includes('scan_disabled')) {
+                                scanStatusHtml = '<span class="scan-badge disabled" title="Scanning was disabled">Not Scanned</span>';
+                            } else {
+                                scanStatusHtml = scanResult.isSafe ? 
+                                    '<span class="scan-badge safe" title="File is safe">Safe</span>' : 
+                                    '<span class="scan-badge unsafe" title="File is unsafe">Unsafe</span>';
+                            }
+                        }
+                        
+                        return `
+                            <div class="file-item">
+                                <div class="file-info">
+                                    <span class="file-name">${file.name} ${scanStatusHtml}</span>
+                                    <span class="file-details">
+                                        Size: ${formatFileSize(file.size)} | 
+                                        Uploaded: ${new Date(file.created).toLocaleString()}
+                                    </span>
+                                </div>
+                                <div class="file-actions">
+                                    <button onclick="deleteFile('${file.name}')" class="delete-btn">Delete</button>
+                                </div>
                             </div>
-                            <div class="file-actions">
-                                <button onclick="deleteFile('${file.name}')" class="delete-btn">Delete</button>
-                            </div>
-                        </div>
-                    `).join('');
+                        `;
+                    }).join('');
             })
             .catch(error => {
                 console.error('Error loading files:', error);
@@ -110,6 +149,12 @@
             statusDiv.textContent = 'Uploading...';
             statusDiv.className = 'status-message';
 
+            // Add upload message based on security mode
+            let uploadMessage = 'File uploaded successfully!';
+            if (securityMode === 'disabled') {
+                uploadMessage = 'File uploaded successfully (scanning disabled)';
+            }
+
             fetch('/upload', {
                 method: 'POST',
                 headers: {
@@ -119,8 +164,11 @@
             })
             .then(response => response.json())
             .then(data => {
-                statusDiv.textContent = 'File uploaded successfully!';
-                statusDiv.className = 'status-message success';
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+                statusDiv.textContent = data.warning || uploadMessage;
+                statusDiv.className = 'status-message ' + (data.warning ? 'warning' : 'success');
                 fileInput.value = '';
                 loadFiles();
             })
@@ -153,6 +201,9 @@
         }
 
         loadFiles();
+        
+        // Refresh file list periodically
+        setInterval(loadFiles, 30000);
     </script>
 </body>
 </html>
