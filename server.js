@@ -10,7 +10,7 @@ const port = 3000;
 
 // System Configuration
 let systemConfig = {
-    securityMode: 'prevent', // 'prevent', 'logOnly', or 'disabled'
+    securityMode: process.env.SECURITY_MODE || 'disabled', // 'prevent', 'logOnly', or 'disabled'
 };
 
 // Environment variables
@@ -86,7 +86,7 @@ app.post('/upload', basicAuth, upload.single('file'), async (req, res) => {
 
         const filePath = path.join('./uploads', req.file.filename);
 
-        // If scanning is disabled, skip the scanning process
+        // Skip scanning if security mode is disabled
         if (systemConfig.securityMode === 'disabled') {
             const scanRecord = {
                 filename: req.file.originalname,
@@ -232,10 +232,18 @@ app.delete('/files/:filename', basicAuth, (req, res) => {
 
 // Configuration endpoints
 app.get('/api/config', basicAuth, (req, res) => {
-    res.json(systemConfig);
+    res.json({
+        ...systemConfig,
+        isAdmin: req.user.role === 'admin'
+    });
 });
 
 app.post('/api/config', basicAuth, (req, res) => {
+    // Check if user is admin
+    if (req.user.role !== 'admin') {
+        return res.status(403).json({ error: 'Only administrators can modify system configuration' });
+    }
+
     const { securityMode } = req.body;
     
     if (securityMode && ['prevent', 'logOnly', 'disabled'].includes(securityMode)) {
@@ -341,5 +349,5 @@ if (!fs.existsSync('./uploads')) {
 // Start server
 app.listen(port, '0.0.0.0', () => {
     console.log(`ByteVault running on port ${port}`);
-    console.log('Security Mode:', systemConfig.securityMode);
+    console.log('Security Mode:', systemConfig.securityMode, process.env.SECURITY_MODE ? '(from environment)' : '(default)');
 });
