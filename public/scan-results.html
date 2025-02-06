@@ -67,6 +67,7 @@
             font-size: 0.875rem;
             text-align: center;
             width: fit-content;
+            cursor: help;
         }
 
         .scan-status.safe {
@@ -77,6 +78,11 @@
         .scan-status.unsafe {
             background: #fee2e2;
             color: #991b1b;
+        }
+
+        .scan-status.disabled {
+            background: #e5e7eb;
+            color: #4b5563;
         }
 
         .scan-tags {
@@ -159,6 +165,7 @@
                     <option value="all">All Files</option>
                     <option value="safe">Safe Files</option>
                     <option value="unsafe">Unsafe Files</option>
+                    <option value="disabled">Not Scanned</option>
                 </select>
             </div>
 
@@ -210,8 +217,13 @@
             })
             .then(response => response.json())
             .then(scans => {
-                const filteredScans = filter === 'all' ? scans : 
-                    scans.filter(scan => filter === 'safe' ? scan.isSafe : !scan.isSafe);
+                const filteredScans = scans.filter(scan => {
+                    if (filter === 'all') return true;
+                    if (filter === 'safe') return scan.isSafe && !scan.tags.includes('scan_disabled');
+                    if (filter === 'unsafe') return !scan.isSafe;
+                    if (filter === 'disabled') return scan.tags.includes('scan_disabled');
+                    return true;
+                });
 
                 const scanList = document.getElementById('scanList');
                 scanList.innerHTML = filteredScans.length === 0 ? 
@@ -219,8 +231,17 @@
                     filteredScans.map(scan => `
                         <div class="scan-grid-row">
                             <div>
-                                <div class="scan-status ${scan.isSafe ? 'safe' : 'unsafe'}">
-                                    ${scan.isSafe ? '✓ Safe' : '⚠ Unsafe'}
+                                <div class="scan-status ${
+                                    scan.tags.includes('scan_disabled') ? 'disabled' :
+                                    scan.isSafe ? 'safe' : 'unsafe'}" 
+                                    title="${
+                                        scan.tags.includes('scan_disabled') ? 'Scanning was disabled' :
+                                        scan.isSafe ? 'File is safe' : 'File is unsafe'
+                                    }">
+                                    ${
+                                        scan.tags.includes('scan_disabled') ? '⚪ Not Scanned' :
+                                        scan.isSafe ? '✓ Safe' : '⚠ Unsafe'
+                                    }
                                 </div>
                             </div>
                             <div class="scan-filename">${scan.filename}</div>
