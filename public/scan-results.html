@@ -36,7 +36,7 @@
 
         .scan-grid-header {
             display: grid;
-            grid-template-columns: auto 2fr 1fr 1fr 1fr 2fr;
+            grid-template-columns: auto 2fr 1fr 1fr 1fr 1fr 1fr 1fr;
             gap: 1rem;
             padding: 1rem;
             background-color: var(--primary-color);
@@ -46,7 +46,7 @@
 
         .scan-grid-row {
             display: grid;
-            grid-template-columns: auto 2fr 1fr 1fr 1fr 2fr;
+            grid-template-columns: auto 2fr 1fr 1fr 1fr 1fr 1fr 1fr;
             gap: 1rem;
             padding: 1rem;
             border-bottom: 1px solid #eee;
@@ -85,6 +85,40 @@
             color: #4b5563;
         }
 
+        .action-badge {
+            padding: 0.25rem 0.75rem;
+            border-radius: 4px;
+            font-size: 0.875rem;
+            background: #f3f4f6;
+            color: #374151;
+        }
+
+        .file-status {
+            font-size: 0.875rem;
+            padding: 0.25rem 0.75rem;
+            border-radius: 4px;
+            text-align: center;
+        }
+
+        .file-status.saved {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+
+        .file-status.deleted {
+            background: #fecaca;
+            color: #991b1b;
+        }
+
+        .security-mode {
+            font-size: 0.875rem;
+            padding: 0.25rem 0.75rem;
+            border-radius: 4px;
+            text-align: center;
+            background: #f3f4f6;
+            color: #374151;
+        }
+
         .scan-tags {
             display: flex;
             gap: 0.5rem;
@@ -97,11 +131,6 @@
             padding: 0.25rem 0.5rem;
             border-radius: 4px;
             font-size: 0.75rem;
-        }
-
-        .scan-filename {
-            font-weight: 500;
-            color: var(--primary-color);
         }
 
         .no-results {
@@ -120,26 +149,37 @@
             border-radius: 4px;
         }
 
-        @media (max-width: 768px) {
+        @media (max-width: 1200px) {
             .scan-grid-header, .scan-grid-row {
-                grid-template-columns: 1fr;
+                grid-template-columns: auto 2fr 1fr 1fr;
                 gap: 0.5rem;
-                padding: 0.75rem;
             }
 
+            .scan-grid-row > div:nth-child(n+5) {
+                grid-column: span 2;
+            }
+        }
+
+        @media (max-width: 768px) {
             .scan-grid-header {
                 display: none;
             }
 
+            .scan-grid-row {
+                grid-template-columns: 1fr;
+                gap: 0.5rem;
+                padding: 1rem;
+            }
+
             .scan-grid-row > div {
+                grid-column: 1 !important;
                 padding: 0.25rem 0;
             }
 
-            .scan-filename {
-                font-size: 1.1rem;
-            }
-
-            .scan-tags {
+            .scan-grid-row .scan-tags {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 0.25rem;
                 margin-top: 0.5rem;
             }
 
@@ -174,9 +214,11 @@
                     <div>Status</div>
                     <div>File Name</div>
                     <div>Size</div>
-                    <div>Type</div>
-                    <div>Scanned</div>
+                    <div>Action Taken</div>
+                    <div>File Status</div>
+                    <div>Security Mode</div>
                     <div>Tags</div>
+                    <div>Timestamp</div>
                 </div>
                 <div id="scanList" class="scan-grid-content"></div>
             </div>
@@ -246,13 +288,25 @@
                             </div>
                             <div class="scan-filename">${scan.filename}</div>
                             <div>${formatFileSize(scan.size)}</div>
-                            <div>${scan.mimetype}</div>
-                            <div>${new Date(scan.timestamp).toLocaleString()}</div>
+                            <div class="action-badge" title="${scan.action}">
+                                ${scan.action}
+                            </div>
+                            <div>
+                                <span class="file-status ${scan.fileStatus.toLowerCase()}" title="${scan.fileStatus}">
+                                    ${scan.fileStatus}
+                                </span>
+                            </div>
+                            <div>
+                                <span class="security-mode" title="Security mode at time of scan">
+                                    ${scan.securityMode.charAt(0).toUpperCase() + scan.securityMode.slice(1)}
+                                </span>
+                            </div>
                             <div class="scan-tags">
                                 ${scan.tags.map(tag => `
                                     <span class="scan-tag">${tag}</span>
                                 `).join('')}
                             </div>
+                            <div>${new Date(scan.timestamp).toLocaleString()}</div>
                         </div>
                     `).join('');
             })
