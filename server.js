@@ -78,112 +78,146 @@ const storeScanResult = (result) => {
 };
 
 // API Endpoints
-app.post('/upload', basicAuth, upload.single('file'), async (req, res) => {
+app.post('/upload', basicAuth, upload.array('file'), async (req, res) => {
     try {
-        if (!req.file) {
-            return res.status(400).json({ error: 'No file uploaded' });
+        if (!req.files || req.files.length === 0) {
+            return res.status(400).json({ error: 'No files uploaded' });
         }
 
-        const filePath = path.join('./uploads', req.file.filename);
-
-        // Skip scanning if security mode is disabled
-        if (systemConfig.securityMode === 'disabled') {
-            const scanRecord = {
-                filename: req.file.originalname,
-                size: req.file.size,
-                mimetype: req.file.mimetype,
-                isSafe: true,
-                scanId: `SCAN_DISABLED_${Date.now()}`,
-                tags: ['scan_disabled'],
-                timestamp: new Date()
-            };
-            
-            storeScanResult(scanRecord);
-            return res.json({ 
-                message: 'File uploaded successfully (scanning disabled)',
-                filename: req.file.filename,
-                size: req.file.size,
-                mimetype: req.file.mimetype,
-                scanResult: {
-                    isSafe: true,
-                    message: 'Scanning disabled'
-                }
-            });
-        }
+        const responses = [];
         
-        // Normal scanning process
-        const fileData = fs.readFileSync(filePath);
-        
-        try {
-            const scanResponse = await axios.post('http://localhost:3001/scan', fileData, {
-                headers: {
-                    'Content-Type': 'application/octet-stream',
-                    'X-Filename': req.file.originalname
-                }
-            });
+        // Process each file
+        for (const file of req.files) {
+            const filePath = path.join('./uploads', file.filename);
 
-            const scanResult = JSON.parse(scanResponse.data.message);
-            const isMalwareFound = scanResult.scanResult === 1 || (scanResult.foundMalwares && scanResult.foundMalwares.length > 0);
-            
-            // Store scan result
-            const scanRecord = {
-                filename: req.file.originalname,
-                size: req.file.size,
-                mimetype: req.file.mimetype,
-                isSafe: !isMalwareFound,
-                scanId: scanResponse.data.scanId,
-                tags: scanResponse.data.tags,
-                timestamp: new Date()
-            };
-            
-            if (isMalwareFound) {
-                // Handle malware based on security mode
-                if (systemConfig.securityMode === 'prevent') {
+            try {
+                // Skip scanning if security mode is disabled
+                if (systemConfig.securityMode === 'disabled') {
+                    const scanRecord = {
+                        filename: file.originalname,
+                        size: file.size,
+                        mimetype: file.mimetype,
+                        isSafe: true,
+                        scanId: `SCAN_DISABLED_${Date.now()}`,
+                        tags: ['scan_disabled'],
+                        timestamp: new Date(),
+                        securityMode: systemConfig.securityMode,
+                        action: 'Uploaded without scanning',
+                        fileStatus: 'Saved',
+                        uploadedBy: req.user.username
+                    };
+                    
+                    storeScanResult(scanRecord);
+                    responses.push({ 
+                        file: file.originalname,
+                        status: 'success',
+                        message: 'File uploaded successfully (scanning disabled)',
+                        scanResult: {
+                            isSafe: true,
+                            message: 'Scanning disabled'
+                        }
+                    });
+                    continue; // Move to next file
+                }
+                
+                // Normal scanning process
+                const fileData = fs.readFileSync(filePath);
+                
+                try {
+                    const scanResponse = await axios.post('http://localhost:3001/scan', fileData, {
+                        headers: {
+                            'Content-Type': 'application/octet-stream',
+                            'X-Filename': file.originalname
+                        }
+                    });
+
+                    const scanResult = JSON.parse(scanResponse.data.message);
+                    const isMalwareFound = scanResult.scanResult === 1 || (scanResult.foundMalwares && scanResult.foundMalwares.length > 0);
+                    
+                    // Store scan result
+                    const scanRecord = {
+                        filename: file.originalname,
+                        size: file.size,
+                        mimetype: file.mimetype,
+                        isSafe: !isMalwareFound,
+                        scanId: scanResponse.data.scanId,
+                        tags: scanResponse.data.tags || [],
+                        timestamp: new Date(),
+                        securityMode: systemConfig.securityMode,
+                        action: isMalwareFound ? 
+                            (systemConfig.securityMode === 'prevent' ? 'Malware detected and blocked' : 'Malware detected and logged') :
+                            'Scanned and verified safe',
+                        fileStatus: isMalwareFound && systemConfig.securityMode === 'prevent' ? 'Deleted' : 'Saved',
+                        uploadedBy: req.user.username,
+                        scanDetails: scanResult
+                    };
+                    
+                    if (isMalwareFound) {
+                        // Handle malware based on security mode
+                        if (systemConfig.securityMode === 'prevent') {
+                            fs.unlinkSync(filePath);
+                            storeScanResult(scanRecord);
+                            responses.push({
+                                file: file.originalname,
+                                status: 'error',
+                                error: 'Malware detected - Upload prevented',
+                                details: scanResponse.data.message,
+                                scanId: scanResponse.data.scanId
+                            });
+                        } else {
+                            // Log Only mode - keep file but mark as unsafe
+                            storeScanResult(scanRecord);
+                            responses.push({
+                                file: file.originalname,
+                                status: 'warning',
+                                message: 'File uploaded but marked as unsafe',
+                                warning: 'Malware detected',
+                                scanResult: scanResponse.data
+                            });
+                        }
+                    } else {
+                        // Safe file handling
+                        storeScanResult(scanRecord);
+                        responses.push({
+                            file: file.originalname,
+                            status: 'success',
+                            message: 'File uploaded and scanned successfully',
+                            scanResult: scanResponse.data
+                        });
+                    }
+
+                } catch (scanError) {
+                    // Delete file on scan error
                     fs.unlinkSync(filePath);
-                    storeScanResult(scanRecord);
-                    return res.status(400).json({
-                        error: 'Malware detected - Upload prevented',
-                        details: scanResponse.data.message,
-                        scanId: scanResponse.data.scanId
-                    });
-                } else {
-                    // Log Only mode - keep file but mark as unsafe
-                    storeScanResult(scanRecord);
-                    return res.json({
-                        message: 'File uploaded but marked as unsafe',
-                        filename: req.file.filename,
-                        size: req.file.size,
-                        mimetype: req.file.mimetype,
-                        warning: 'Malware detected',
-                        scanResult: scanResponse.data
+                    console.error('Scan error:', scanError);
+                    responses.push({
+                        file: file.originalname,
+                        status: 'error',
+                        error: 'File scan failed',
+                        details: scanError.message
                     });
                 }
+            } catch (fileError) {
+                console.error('File processing error:', fileError);
+                if (fs.existsSync(filePath)) {
+                    fs.unlinkSync(filePath);
+                }
+                responses.push({
+                    file: file.originalname,
+                    status: 'error',
+                    error: 'File processing failed'
+                });
             }
-
-            // Safe file handling
-            storeScanResult(scanRecord);
-            res.json({ 
-                message: 'File uploaded and scanned successfully',
-                filename: req.file.filename,
-                size: req.file.size,
-                mimetype: req.file.mimetype,
-                scanResult: scanResponse.data
-            });
-
-        } catch (scanError) {
-            // Always delete file on scan error
-            fs.unlinkSync(filePath);
-            console.error('Scan error:', scanError);
-            return res.status(500).json({ 
-                error: 'File scan failed',
-                details: scanError.message
-            });
         }
+
+        // Send combined response
+        res.json({
+            message: 'File upload processing complete',
+            results: responses
+        });
+
     } catch (error) {
         console.error('Upload error:', error);
-        if (req.file && fs.existsSync(req.file.path)) {
-            fs.unlinkSync(req.file.path);
-        }
         res.status(500).json({ error: 'File upload failed' });
     }
 });
