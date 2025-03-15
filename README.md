@@ -1,6 +1,6 @@
-# HackedVault - Secure File Storage with Malware Scanning
+# ByteVault - Secure File Storage with Malware Scanning
 
-HackedVault is a containerized file storage application with malware scanning capabilities, web interface, and REST API. It provides secure file upload, scanning, and management.
+ByteVault is a containerized file storage application with malware scanning capabilities, web interface, and REST API. It provides secure file upload, scanning, and management.
 
 ## Features
 - Web interface for file management
@@ -17,7 +17,7 @@ HackedVault is a containerized file storage application with malware scanning ca
 
 ## Directory Structure
 ```
-hackedvault/
+bytevault/
 ├── Dockerfile              # Container configuration
 ├── scanner.go             # Go-based scanner service
 ├── server.js              # Express server implementation
@@ -45,7 +45,7 @@ export FSS_API_KEY=your_api_key
 
 2. Build and run:
 ```bash
-docker build -t hackedvault:latest .
+docker build -t bytevault:latest .
 
 # Run with only user account (no admin)
 docker run -d \
@@ -54,10 +54,10 @@ docker run -d \
   -e FSS_API_KEY=$FSS_API_KEY \
   -e USER_USERNAME="user" \
   -e USER_PASSWORD="your_password" \
-  -e FSS_CUSTOM_TAGS="env:hackedvault,team:security" \
+  -e FSS_CUSTOM_TAGS="env:bytevault,team:security" \
   -e SECURITY_MODE="prevent" \
-  --name hackedvault \
-  hackedvault:latest
+  --name bytevault \
+  bytevault:latest
 
 # Or run with both user and admin accounts
 docker run -d \
@@ -68,10 +68,10 @@ docker run -d \
   -e USER_PASSWORD="your_password" \
   -e ADMIN_USERNAME="admin" \
   -e ADMIN_PASSWORD="admin_password" \
-  -e FSS_CUSTOM_TAGS="env:hackedvault,team:security" \
+  -e FSS_CUSTOM_TAGS="env:bytevault,team:security" \
   -e SECURITY_MODE="prevent" \
-  --name hackedvault \
-  hackedvault:latest
+  --name bytevault \
+  bytevault:latest
 ```
 
 3. Access the application:
@@ -80,7 +80,7 @@ docker run -d \
 
 ## Security Modes
 
-HackedVault supports three security modes:
+ByteVault supports three security modes:
 
 ### Disabled Mode (Default)
 - Bypasses malware scanning
@@ -103,7 +103,7 @@ HackedVault supports three security modes:
 
 ## Authentication
 
-HackedVault supports two authentication methods:
+ByteVault supports two authentication methods:
 
 ### Web Interface Authentication
 - Session-based authentication
@@ -216,7 +216,7 @@ curl -X DELETE http://localhost:3000/api/files/filename.txt -u "user:your_passwo
 |----------|-------------|---------|----------|
 | FSS_API_KEY | File Security Services API Key | Required | Yes |
 | FSS_API_ENDPOINT | FSS API Endpoint | antimalware.us-1.cloudone.trendmicro.com:443 | No |
-| FSS_CUSTOM_TAGS | Custom tags for scans | env:hackedvault,team:security | No |
+| FSS_CUSTOM_TAGS | Custom tags for scans | env:bytevault,team:security | No |
 | USER_USERNAME | Regular user username | user | No |
 | USER_PASSWORD | Regular user password | user123 | No |
 | ADMIN_USERNAME | Admin username | Not configured | No |
@@ -264,8 +264,8 @@ docker run -d \
   -e USER_USERNAME="user" \
   -e USER_PASSWORD="your_password" \
   -e SECURITY_MODE="prevent" \
-  --name hackedvault \
-  hackedvault:latest
+  --name bytevault \
+  bytevault:latest
 ```
 
 ## Troubleshooting
@@ -280,7 +280,7 @@ docker run -d \
 
 #### Scanner Issues
 - Verify FSS_API_KEY is set correctly
-- Check scanner logs: `docker logs hackedvault | grep scanner`
+- Check scanner logs: `docker logs bytevault | grep scanner`
 - Verify both ports (3000 and 3001) are accessible
 - Check if security mode is not disabled
 
@@ -297,6 +297,6 @@ docker run -d \
 
 View logs:
 ```bash
-docker logs hackedvault
-docker logs -f hackedvault
+docker logs bytevault
+docker logs -f bytevault
 ```
