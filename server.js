@@ -49,7 +49,7 @@ app.use(cookieParser());
 
 // Session middleware
 app.use(session({
-    secret: 'hackedvault-secret-key',
+    secret: 'bytevault-secret-key',
     resave: false,
     saveUninitialized: false,
     cookie: { 
@@ -58,7 +58,7 @@ app.use(session({
         httpOnly: true,
         sameSite: 'lax'
     },
-    name: 'hackedvault.sid', // Custom session cookie name
+    name: 'bytevault.sid', // Custom session cookie name
     proxy: true // Trust the reverse proxy
 }));
 
@@ -420,11 +420,11 @@ if (sslOptions) {
 
 // Start servers
 httpServer.listen(httpPort, '0.0.0.0', () => {
-    console.log(`HackedVault HTTP server running on port ${httpPort}`);
+    console.log(`ByteVault HTTP server running on port ${httpPort}`);
 });
 
 if (httpsServer) {
     httpsServer.listen(httpsPort, '0.0.0.0', () => {
-        console.log(`HackedVault HTTPS server running on port ${httpsPort}`);
+        console.log(`ByteVault HTTPS server running on port ${httpsPort}`);
     });
 }
