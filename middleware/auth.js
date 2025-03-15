@@ -63,7 +63,7 @@ const basicAuth = (req, res, next) => {
         }
     }
 
-    res.setHeader('WWW-Authenticate', 'Basic realm="HackedVault API"');
+    res.setHeader('WWW-Authenticate', 'Basic realm="ByteVault API"');
     res.status(401).json({ error: 'Authentication required' });
 };
 
