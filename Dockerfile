@@ -1,6 +1,6 @@
 # Builder stage
 # Alternative Base Image: Use a GHCR-hosted image instead of Docker Hub
-# FROM ghcr.io/recursivebugs/hackedvault/golang:1.21-alpine AS scanner-builder
+# FROM ghcr.io/recursivebugs/bytevault/golang:1.21-alpine AS scanner-builder
 FROM golang:1.21-alpine AS scanner-builder
 
 WORKDIR /build
@@ -13,7 +13,7 @@ RUN go build -o scanner
 
 # Final image
 # Alternative Base Image: Use a GHCR-hosted image instead of Docker Hub
-# FROM ghcr.io/recursivebugs/hackedvault/alpine:latest
+# FROM ghcr.io/recursivebugs/bytevault/alpine:latest
 FROM alpine:3.15
 
 # Set environment variables with defaults
