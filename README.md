@@ -1,71 +1,87 @@
-# ByteVault - Secure File Storage with Malware Scanning
+# FinGuard - Financial Services Malware Scanner
 
-[![Docker Hub](https://img.shields.io/badge/docker-fafiorim%2Fbytevault-blue)](https://hub.docker.com/r/fafiorim/bytevault)
-[![Version](https://img.shields.io/badge/version-1.5.0-green)](https://github.com/fafiorim/bytevault/releases/tag/v1.5.0)
+[![GitHub](https://img.shields.io/badge/github-fafiorim%2Ffinguard-blue)](https://github.com/fafiorim/finguard)
+[![Version](https://img.shields.io/badge/version-1.6.0-green)](https://github.com/fafiorim/finguard)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Powered by](https://img.shields.io/badge/powered%20by-Trend%20Micro%20Cloud%20One-red)](https://www.trendmicro.com/cloudone)
 
-Disclaimer: This application is designed for demo purposes only. It is not intended for production deployment under any circumstances. Use at your own risk.
+**Disclaimer:** This application is designed for demo purposes only. It is not intended for production deployment under any circumstances. Use at your own risk.
 
-Bytevault is a containerized file storage application with malware scanning capabilities, web interface, and REST API. It provides secure file upload, scanning, and management with enhanced health monitoring and real-time service validation.
+FinGuard is a specialized malware scanner designed for financial institutions, leveraging Trend Micro Cloud One File Security. Built with a focus on compliance and security, it provides comprehensive file scanning capabilities with advanced detection features and detailed audit trails.
 
 ## Features
-- Web interface for file management
-- Real-time malware scanning using File Security Services
-- Configurable security modes (Prevent/Log Only/Disabled)
-- File upload with automated scanning
-- Scan history and status monitoring
-- **Enhanced health monitoring dashboard with real-time service validation**
-- **Scanner logs viewer accessible from health status page**
-- **Degraded status reporting for better observability**
-- RESTful API with Basic Authentication
-- Session-based web authentication
-- Docker containerization with multi-architecture support
-- Kubernetes-ready deployment manifests
-- Optional admin configuration
-- Role-based access control
-- HTTPS support with self-signed certificates
+
+### Core Capabilities
+- **Real-time malware scanning** using Trend Micro Cloud One File Security API
+- **Web interface** for file management and monitoring
+- **RESTful API** with Basic Authentication
+- **Configurable security modes** (Prevent/Log Only/Disabled)
+- **Enhanced health monitoring** with real-time service validation
+- **Scanner logs viewer** accessible from health status page
+- **Session-based authentication** with role-based access control
+- **Docker containerization** with multi-architecture support
+- **HTTPS support** with self-signed certificates
+
+### Advanced Scanner Features (NEW)
+- **PML Detection** - Predictive Machine Learning for zero-day threats
+- **SPN Feedback** - Smart Protection Network threat intelligence sharing
+- **Verbose Results** - Detailed scan metadata with engine versions and timing
+- **Active Content Detection** - Identifies PDF scripts and Office macros
+- **Scan Method Selection** - Buffer (in-memory) or File (disk-based) scanning
+- **File Hash Calculation** - SHA1/SHA256 digests for audit trails
+- **Configuration Tags** - Track scanner settings per scan (ml_enabled, spn_feedback, active_content)
+
+### Security & Compliance
+- **Dual scan methods** for flexibility and performance optimization
+- **Detailed audit logging** with configurable tags
+- **File hash tracking** for forensic analysis
+- **Active content detection** for Office/PDF document security
+- **Malware detection** with proper status reporting (fixed EICAR detection bug)
 
 ## Directory Structure
 ```
-bytevault/
-├── Dockerfile              # Container configuration
-├── scanner.go             # Go-based scanner service
-├── server.js              # Express server implementation
+finguard/
+├── Dockerfile              # Multi-stage container build
+├── docker-compose.yml      # Optional Docker Compose setup
+├── start.sh               # Container startup script
+├── generate-cert.js       # SSL certificate generator
+├── scanner.go             # Go-based scanner service with Trend Micro SDK
+├── server.js              # Express API server
 ├── package.json           # Node.js dependencies
+├── go.mod                 # Go module dependencies
+├── go.sum                 # Go dependency checksums
+├── k8s/                   # Kubernetes deployment manifests
+│   ├── deployment.yaml   # K8s deployment configuration
+│   ├── service.yaml      # LoadBalancer service
+│   └── configmap.yaml    # Configuration management
 ├── middleware/            # Application middleware
-│   └── auth.js           # Authentication middleware
-└── public/                # Static files directory
-    ├── components/       # UI components
-    ├── index.html        # Welcome page
-    ├── login.html        # Login interface
-    ├── dashboard.html    # File management interface
-    ├── scan-results.html # Scan history interface
-    ├── health-status.html # System health monitoring
-    ├── configuration.html # System configuration page
-    ├── styles.css        # Application styling
-    └── script.js         # Client-side functionality
-```
-
-## Quick Start
-
-### Using Docker Hub (Recommended)
+│   └── auth.js           # Authentication & authorization
+├── public/                # Web interface (static files)
+│   ├── components/       # Reusable UI components
+│   │   └── nav.html     # Navigation component
+│   ├── index.html        # Welcome/landing page
+│   ├── login.html        # Authentication page
+│   Building from Source
 
 ```bash
-# Set your FSS API key
-export FSS_API_KEY=your_api_key
+# Clone the repository
+git clone https://github.com/fafiorim/finguard.git
+cd finguard
 
-# Run with Docker Hub image
+# Build the Docker image
+docker build -t finguard:latest .
+
+# Set your Trend Micro Cloud One API key
+export FSS_API_KEY=your_api_key_here
+
+# Run the container
 docker run -d \
   -p 3000:3000 \
   -p 3443:3443 \
   -e FSS_API_KEY=$FSS_API_KEY \
   -e SECURITY_MODE="logOnly" \
-  --name bytevault \
-  fafiorim/bytevault:v1.5.0
-```
-
-### Building from Source
-
+  --name finguard \
+  finguard
 ```bash
 # Clone and build
 git clone https://github.com/fafiorim/bytevault.git
@@ -98,14 +114,89 @@ docker run -d \
 Bytevault includes production-ready Kubernetes manifests in the `k8s/` directory.
 
 ### Quick Deploy
+Configuration**: http://localhost:3000/configuration
+- **API Endpoints**: http://localhost:3000/api/* (with Basic Auth)
 
-```bash
-# Create secret with your FSS API key
-kubectl create secret generic bytevault-secrets \
-  --from-literal=admin-password=your_admin_pass \
-  --from-literal=user-password=your_user_pass \
-  --from-literal=fss-api-key=your_fss_api_key
+### Default Credentials
+- **Admin**: `admin` / `admin123`
+- **User**: `user` / `usern-password=your_admin_pass \
+  -Scanner Configuration
 
+FinGuard provides granular control over scanner behavior through the configuration page (admin access required).
+
+### Scan Methods
+
+**Buffer Scan (Default)**
+- Loads file into memory
+- Sends data to scanner via network
+- Faster for small files
+- Higher memory usage
+
+**File Scan**
+- Scanner reads directly from disk
+- Lower network overhead
+- Better for large files
+- Requires shared file system access
+
+### Advanced Detection Features
+
+**PML (Predictive Machine Learning)**
+- AI-powered detection for unknown threats
+- Zero-day malware detection
+- Enhanced by Smart Protection Network data
+- Configurable per-scan via `ml_enabled` tag
+
+**SPN Feedback (Smart Protection Network)**
+- Shares threat intelligence with Trend Micro
+- Improves global threat detection
+- Real-time correlation analysis
+- Tracked via `spn_feedback` tag
+
+FinGuard Results**
+- Detailed scan metadata
+- Engine versions and pattern updates
+- Scan timing and performance metrics
+- File type detection details
+
+**Active Content Detection**
+- Identifies PDF JavaScript
+- Detects Office macros
+- Reports potentially risky embedded code
+- Returns `activeContentCount` in results
+- Tracked via `active_content` tag
+
+**File Hash Calculation**
+- SHA1 and SHA256 digest generation
+- Essential for audit trails and forensics
+- Toggleable to reduce overhead
+- Included in scan results when enabled
+
+### Configuration Tags
+
+Each scan includes tags for audit and compliance:
+```
+FinGuardard                    # Application identifier
+file_type=.pdf                  # File extension
+scan_method=buffer              # Scan method used
+ml_enabled=true                 # PML detection status
+spn_feedback=true               # SPN sharing status
+active_content=true             # Active content detection
+malware_name=Eicar_test_file   # Detected threat (if any)
+```
+
+## Sample Files
+
+FinGuard includes sample files in the `samples/` directory for testing scanner features:
+
+- **safe-file.pdf** - Clean PDF file with no threats
+- **file_active_content.pdf** - PDF with embedded JavaScript for active content detection testing
+- **README.md** - Detailed testing instructions
+
+Upload these samples with different configurations to see how various detection features work.
+
+## Kubernetes Deployment
+
+FinGuard
 # Deploy ConfigMap
 kubectl apply -f k8s/configmap.yaml
 
@@ -203,7 +294,8 @@ curl -X POST http://localhost:3000/api/upload \
 # Example Response (Safe File)
 {
     "message": "File uploaded and scanned successfully",
-    "results": [{
+    "results": [{(empty) | No |
+| FSS_REGION | Trend Micro Cloud One region | us-1
         "file": "example.txt",
         "status": "success",
         "message": "File uploaded and scanned successfully",
@@ -267,29 +359,40 @@ curl http://localhost:3000/api/scanner-logs -u "admin:admin_password"
 ```
 
 #### Delete File
-```bash
-curl -X DELETE http://localhost:3000/api/files/filename.txt -u "user:your_password"
-```
+```bash6.0 (FinGuard)
 
-## Environment Variables
+**What's New:**
+- 🐛 **Fixed EICAR malware detection bug** - Files now correctly identified as unsafe
+- 🤖 **PML Detection** - AI-powered zero-day malware detection
+- 🌐 **SPN Feedback** - Smart Protection Network integration
+- 📊 **Verbose Results** - Detailed scan metadata and diagnostics
+- 🔍 **Active Content Detection** - PDF scripts and Office macros detection
+- 🔄 **Scan Method Selection** - Buffer vs File scanning options
+- 🔐 **File Hash Calculation** - SHA1/SHA256 digests with toggle
+- 🏷️ **Configuration Tags** - Audit trail with ml_enabled, spn_feedback, active_content
+- 📄 **Sample Files** - Test files included for feature validation
+- 🎨 **FinGuard Branding** - Specialized for financial services
 
-| Variable | Description | Default | Required |
-|----------|-------------|---------|----------|
-| FSS_API_KEY | File Security Services API Key | Required | Yes |
-| FSS_API_ENDPOINT | FSS API Endpoint | antimalware.us-1.cloudone.trendmicro.com:443 | No |
-| FSS_CUSTOM_TAGS | Custom tags for scans | env:bytevault,team:security | No |
-| USER_USERNAME | Regular user username | user | No |
-| USER_PASSWORD | Regular user password | user123 | No |
-| ADMIN_USERNAME | Admin username | admin | No |
-| ADMIN_PASSWORD | Admin password | changeMe123 | No |
-| SECURITY_MODE | Default security mode (prevent/logOnly/disabled) | disabled | No |
+**Bug Fixes:**
+- Fixed malware detection logic to properly parse both verbose and non-verbose scan results
+- Scanner now correctly uses `isSafe` field from scanner response
+- EICAR test files properly marked as unsafe in all scan modes
 
-## Ports
+**Security Updates:**
+- Updated Go from 1.21 to 1.24.12 (fixes 16 stdlib vulnerabilities)
+- Updated golang.org/x/net from v0.22.0 to v0.49.0
+- Updated bcrypt from 5.1.1 to 6.0.0 (fixes 3 high severity vulnerabilities)
+- Zero remaining vulnerabilities (verified with npm audit and govulncheck)
 
-| Port | Protocol | Description |
-|------|----------|-------------|
-| 3000 | HTTP | Web interface and API |
-| 3443 | HTTPS | Secure web interface (self-signed cert) |
+**Technical Details:**
+- Trend Micro SDK: tm-v1-fs-golang-sdk v1.7.0
+- Go: 1.24.12
+- Node.js: Compatible with latest LTS
+- Multi-architecture: AMD64, ARM64
+
+**Previous Versions:**
+- v1.5.0 - ByteVault with enhanced health monitoring
+- v1.0.0 - Initial ByteVaultecure web interface (self-signed cert) |
 | 3001 | HTTP | Internal scanner service (not exposed) |
 
 ## Web Interface
