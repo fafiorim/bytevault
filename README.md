@@ -1,8 +1,12 @@
 # ByteVault - Secure File Storage with Malware Scanning
 
+[![Docker Hub](https://img.shields.io/badge/docker-fafiorim%2Fbytevault-blue)](https://hub.docker.com/r/fafiorim/bytevault)
+[![Version](https://img.shields.io/badge/version-1.5.0-green)](https://github.com/fafiorim/bytevault/releases/tag/v1.5.0)
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
 Disclaimer: This application is designed for demo purposes only. It is not intended for production deployment under any circumstances. Use at your own risk.
 
-ByteVault is a containerized file storage application with malware scanning capabilities, web interface, and REST API. It provides secure file upload, scanning, and management.
+Bytevault is a containerized file storage application with malware scanning capabilities, web interface, and REST API. It provides secure file upload, scanning, and management with enhanced health monitoring and real-time service validation.
 
 ## Features
 - Web interface for file management
@@ -10,12 +14,16 @@ ByteVault is a containerized file storage application with malware scanning capa
 - Configurable security modes (Prevent/Log Only/Disabled)
 - File upload with automated scanning
 - Scan history and status monitoring
-- Health monitoring dashboard
+- **Enhanced health monitoring dashboard with real-time service validation**
+- **Scanner logs viewer accessible from health status page**
+- **Degraded status reporting for better observability**
 - RESTful API with Basic Authentication
 - Session-based web authentication
-- Docker containerization
+- Docker containerization with multi-architecture support
+- Kubernetes-ready deployment manifests
 - Optional admin configuration
 - Role-based access control
+- HTTPS support with self-signed certificates
 
 ## Directory Structure
 ```
@@ -40,45 +48,91 @@ bytevault/
 
 ## Quick Start
 
-1. Set up File Security Services:
+### Using Docker Hub (Recommended)
+
 ```bash
+# Set your FSS API key
 export FSS_API_KEY=your_api_key
+
+# Run with Docker Hub image
+docker run -d \
+  -p 3000:3000 \
+  -p 3443:3443 \
+  -e FSS_API_KEY=$FSS_API_KEY \
+  -e SECURITY_MODE="logOnly" \
+  --name bytevault \
+  fafiorim/bytevault:v1.5.0
 ```
 
-2. Build and run:
+### Building from Source
+
 ```bash
+# Clone and build
+git clone https://github.com/fafiorim/bytevault.git
+cd bytevault
 docker build -t bytevault:latest .
 
-# Run with only user account (no admin)
+# Run locally built image
 docker run -d \
-  -p 3000:3000 -p 3001:3001 \
-  -e FSS_API_ENDPOINT="antimalware.us-1.cloudone.trendmicro.com:443" \
+  -p 3000:3000 \
+  -p 3443:3443 \
   -e FSS_API_KEY=$FSS_API_KEY \
-  -e USER_USERNAME="user" \
-  -e USER_PASSWORD="your_password" \
-  -e FSS_CUSTOM_TAGS="env:bytevault,team:security" \
-  -e SECURITY_MODE="prevent" \
-  --name bytevault \
-  bytevault:latest
-
-# Or run with both user and admin accounts
-docker run -d \
-  -p 3000:3000 -p 3001:3001 \
-  -e FSS_API_ENDPOINT="antimalware.us-1.cloudone.trendmicro.com:443" \
-  -e FSS_API_KEY=$FSS_API_KEY \
-  -e USER_USERNAME="user" \
-  -e USER_PASSWORD="your_password" \
-  -e ADMIN_USERNAME="admin" \
-  -e ADMIN_PASSWORD="admin_password" \
-  -e FSS_CUSTOM_TAGS="env:bytevault,team:security" \
   -e SECURITY_MODE="prevent" \
   --name bytevault \
   bytevault:latest
 ```
 
-3. Access the application:
-- Web Interface: http://localhost:3000
-- API Endpoints: http://localhost:3000/api/* (with Basic Auth)
+### Access the Application
+
+- **HTTP**: http://localhost:3000
+- **HTTPS**: https://localhost:3443
+- **Health Status**: http://localhost:3000/health-status
+- **API Endpoints**: http://localhost:3000/api/* (with Basic Auth)
+
+### Default Credentials
+- Username: `admin`
+- Password: `changeMe123`
+
+## Kubernetes Deployment
+
+Bytevault includes production-ready Kubernetes manifests in the `k8s/` directory.
+
+### Quick Deploy
+
+```bash
+# Create secret with your FSS API key
+kubectl create secret generic bytevault-secrets \
+  --from-literal=admin-password=your_admin_pass \
+  --from-literal=user-password=your_user_pass \
+  --from-literal=fss-api-key=your_fss_api_key
+
+# Deploy ConfigMap
+kubectl apply -f k8s/configmap.yaml
+
+# Deploy application
+kubectl apply -f k8s/deployment.yaml
+
+# Create LoadBalancer service
+kubectl apply -f k8s/service.yaml
+
+# Get external IP
+kubectl get svc bytevault-service
+```
+
+### Kubernetes Resources
+
+- **Deployment**: `k8s/deployment.yaml` - Application deployment with health checks
+- **Service**: `k8s/service.yaml` - LoadBalancer service exposing port 3000
+- **ConfigMap**: `k8s/configmap.yaml` - Application configuration
+- **Secret**: `k8s/secret.yaml` - Template for sensitive data
+
+### Kubernetes Features
+
+- Multi-architecture support (AMD64/ARM64)
+- Liveness and readiness probes
+- ConfigMap-based configuration
+- Secret management for credentials
+- LoadBalancer service for external access
 
 ## Security Modes
 
@@ -207,6 +261,11 @@ curl http://localhost:3000/api/scan-results -u "user:your_password"
 curl http://localhost:3000/api/health -u "user:your_password"
 ```
 
+#### Get Scanner Logs
+```bash
+curl http://localhost:3000/api/scanner-logs -u "admin:admin_password"
+```
+
 #### Delete File
 ```bash
 curl -X DELETE http://localhost:3000/api/files/filename.txt -u "user:your_password"
@@ -221,9 +280,17 @@ curl -X DELETE http://localhost:3000/api/files/filename.txt -u "user:your_passwo
 | FSS_CUSTOM_TAGS | Custom tags for scans | env:bytevault,team:security | No |
 | USER_USERNAME | Regular user username | user | No |
 | USER_PASSWORD | Regular user password | user123 | No |
-| ADMIN_USERNAME | Admin username | Not configured | No |
-| ADMIN_PASSWORD | Admin password | Not configured | No |
+| ADMIN_USERNAME | Admin username | admin | No |
+| ADMIN_PASSWORD | Admin password | changeMe123 | No |
 | SECURITY_MODE | Default security mode (prevent/logOnly/disabled) | disabled | No |
+
+## Ports
+
+| Port | Protocol | Description |
+|------|----------|-------------|
+| 3000 | HTTP | Web interface and API |
+| 3443 | HTTPS | Secure web interface (self-signed cert) |
+| 3001 | HTTP | Internal scanner service (not exposed) |
 
 ## Web Interface
 
@@ -242,11 +309,14 @@ curl -X DELETE http://localhost:3000/api/files/filename.txt -u "user:your_passwo
 - Real-time updates
 
 ### Health Status
-- System health monitoring
-- Scanner status
-- Scan statistics by category
+- **Enhanced health monitoring with real-time service validation**
+- **Scanner service connectivity checks**
+- **Three-state health reporting** (healthy, degraded, unhealthy)
+- **Scanner logs viewer** - Click "Total Scans" to view detailed logs
+- Scan statistics by category (safe, unsafe, not scanned)
 - Security mode status
 - System uptime tracking
+- Error reporting with detailed messages
 
 ### Configuration
 - Security mode management
@@ -269,6 +339,32 @@ docker run -d \
   --name bytevault \
   bytevault:latest
 ```
+
+## Version Information
+
+### Latest Release: v1.5.0
+
+**What's New:**
+- Enhanced health checks with real-time service validation
+- Scanner logs viewer (click "Total Scans" on health status page)
+- Degraded status reporting for better observability
+- Kubernetes deployment manifests
+- Docker Hub multi-architecture images
+
+**Security Updates:**
+- Updated Go from 1.21 to 1.24.12 (fixes 16 stdlib vulnerabilities)
+- Updated golang.org/x/net from v0.22.0 to v0.49.0
+- Updated bcrypt from 5.1.1 to 6.0.0 (fixes 3 high severity vulnerabilities)
+- Zero remaining vulnerabilities (verified with npm audit and govulncheck)
+
+**Docker Images:**
+- `fafiorim/bytevault:v1.5.0` - Stable release
+- `fafiorim/bytevault:latest` - Latest build
+- Multi-architecture: AMD64, ARM64
+- Image size: 161MB
+
+**Previous Versions:**
+- v1.0.0 - Initial release
 
 ## Troubleshooting
 
