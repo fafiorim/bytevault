@@ -3,16 +3,69 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ByteVault - Secure File Storage</title>
+    <title>SecureDoc Financial - Document Portal</title>
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <style>
+        .gradient-bg {
+            background: linear-gradient(135deg, #1e3a8a 0%, #10b981 100%);
+        }
+        .badge {
+            display: inline-block;
+            padding: 0.5rem 1rem;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 0.5rem;
+            margin: 0.25rem;
+            font-size: 0.875rem;
+        }
+    </style>
 </head>
-<body class="bg-gray-100 h-screen flex items-center justify-center">
-    <div class="text-center">
-        <h1 class="text-4xl font-bold mb-4">Welcome to ByteVault</h1>
-        <p class="text-gray-600 mb-8">Secure File Storage Solution</p>
-        <div class="space-x-4">
-            <a href="/login" class="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600">Login</a>
+<body class="gradient-bg h-screen flex items-center justify-center">
+    <div class="max-w-4xl mx-auto text-center text-white px-6">
+        <div class="mb-8">
+            <h1 class="text-5xl font-bold mb-3">🏦 SecureDoc Financial</h1>
+            <p class="text-2xl mb-6 text-green-200">Secure Document Management for Financial Services</p>
         </div>
+        
+        <div class="bg-white bg-opacity-10 backdrop-blur-lg rounded-xl p-8 mb-8">
+            <p class="text-lg mb-8 text-gray-100">
+                Upload tax documents, bank statements, investment reports, and sensitive financial information 
+                with enterprise-grade security scanning and compliance monitoring.
+            </p>
+            
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                <div class="text-center">
+                    <div class="text-4xl mb-3">🛡️</div>
+                    <h3 class="font-bold text-xl mb-2">Malware Protection</h3>
+                    <p class="text-gray-200">Real-time threat scanning on every upload</p>
+                </div>
+                <div class="text-center">
+                    <div class="text-4xl mb-3">🏦</div>
+                    <h3 class="font-bold text-xl mb-2">Bank-Grade Security</h3>
+                    <p class="text-gray-200">Industry-standard encryption & compliance</p>
+                </div>
+                <div class="text-center">
+                    <div class="text-4xl mb-3">📋</div>
+                    <h3 class="font-bold text-xl mb-2">Complete Audit Trail</h3>
+                    <p class="text-gray-200">Track all document submissions</p>
+                </div>
+            </div>
+            
+            <div class="mb-8">
+                <span class="badge">🔒 SOC 2 Type II</span>
+                <span class="badge">🏛️ FDIC Aligned</span>
+                <span class="badge">✓ PCI DSS Compliant</span>
+            </div>
+        </div>
+        
+        <div class="space-x-4">
+            <a href="/login" class="bg-green-500 text-white px-8 py-3 rounded-lg hover:bg-green-600 font-semibold text-lg inline-block shadow-lg">
+                Client Portal Login →
+            </a>
+        </div>
+        
+        <p class="mt-8 text-sm text-gray-300">
+            🔐 All documents are encrypted and scanned for security threats. By accessing this portal, you agree to our security policies.
+        </p>
     </div>
 </body>
 </html>
