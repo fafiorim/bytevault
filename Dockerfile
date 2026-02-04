@@ -1,7 +1,7 @@
 # Builder stage
 # Alternative Base Image: Use a GHCR-hosted image instead of Docker Hub
-# FROM ghcr.io/recursivebugs/bytevault/golang:1.21-alpine AS scanner-builder
-FROM golang:1.21-alpine AS scanner-builder
+# FROM ghcr.io/recursivebugs/bytevault/golang:1.24-alpine AS scanner-builder
+FROM golang:1.24-alpine AS scanner-builder
 
 WORKDIR /build
 # Copy Go files

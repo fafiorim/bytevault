@@ -81,8 +81,9 @@ func main() {
 		log.Fatalf("Failed to create AMaaS client: %v", err)
 	}
 
-	// Disable digest calculation to reduce network traffic
-	client.SetDigestDisable()
+	// Enable digest calculation to get file hashes (SHA1, SHA256) for audit purposes
+	// Note: Digest is disabled by default. We enable it for security auditing.
+	// Only disable if using AmaasReader with remote files to reduce network traffic.
 
 	// Handle scan requests
 	http.HandleFunc("/scan", func(w http.ResponseWriter, r *http.Request) {
@@ -91,43 +92,157 @@ func main() {
 			return
 		}
 
-		// Read file data
-		data, err := io.ReadAll(r.Body)
-		if err != nil {
-			log.Printf("Error reading request body: %v", err)
-			http.Error(w, "Failed to read request body", http.StatusBadRequest)
-			return
-		}
-
-		// Get filename from header if provided
+		// Get headers
 		filename := r.Header.Get("X-Filename")
 		if filename == "" {
 			filename = "unknown"
 		}
 
+		scanMethod := r.Header.Get("X-Scan-Method")
+		if scanMethod == "" {
+			scanMethod = "buffer" // default to buffer method
+		}
+
+		filePath := r.Header.Get("X-File-Path")
+
+		// Get digest configuration
+		digestEnabled := r.Header.Get("X-Digest-Enabled")
+		if digestEnabled == "false" {
+			client.SetDigestDisable()
+			log.Printf("Digest calculation disabled for this scan")
+		} else {
+			// Digest is enabled by default, no action needed
+			log.Printf("Digest calculation enabled for this scan")
+		}
+
+		// Get PML configuration
+		pmlEnabled := r.Header.Get("X-PML-Enabled")
+		if pmlEnabled == "true" {
+			client.SetPMLEnable()
+			log.Printf("PML (Predictive Machine Learning) detection enabled")
+		}
+
+		// Get SPN Feedback configuration
+		spnFeedbackEnabled := r.Header.Get("X-SPN-Feedback-Enabled")
+		if spnFeedbackEnabled == "true" {
+			client.SetFeedbackEnable()
+			log.Printf("SPN feedback enabled")
+		}
+
+		// Get Verbose configuration
+		verboseEnabled := r.Header.Get("X-Verbose-Enabled")
+		if verboseEnabled == "true" {
+			client.SetVerboseEnable()
+			log.Printf("Verbose scan result enabled")
+		}
+
+		// Get Active Content Detection configuration
+		activeContentEnabled := r.Header.Get("X-Active-Content-Enabled")
+		if activeContentEnabled == "true" {
+			client.SetActiveContentEnable()
+			log.Printf("Active content detection enabled (PDF scripts, Office macros)")
+		}
+
 		// Generate unique identifier
 		identifier := time.Now().Format("20060102150405") + "-" + filepath.Base(filename)
 
-		// Combine default and custom tags
+		// Initial tags with key=value format
 		tags := append([]string{
-			"bytevault",                     // Application tag
-			"upload",                        // Operation tag
-			filepath.Ext(filename),          // File extension tag
-			time.Now().Format("2006-01-02"), // Date tag
+			"app=finguard",                           // Application tag
+			"file_type=" + filepath.Ext(filename),    // File extension tag
+			"scan_method=" + scanMethod,              // Scan method tag
+			"ml_enabled=" + pmlEnabled,               // PML detection status
+			"spn_feedback=" + spnFeedbackEnabled,     // SPN feedback status
+			"active_content=" + activeContentEnabled, // Active content detection status
 		}, customTags...)
 
-		// Scan the buffer
-		log.Printf("Starting scan for file: %s with tags: %v", identifier, tags)
-		scanResult, err := client.ScanBuffer(data, identifier, tags)
+		var scanResult string
+		var err error
+
+		// Choose scan method based on header
+		if scanMethod == "file" && filePath != "" {
+			// Scan using file method
+			log.Printf("Starting file scan for: %s with tags: %v", filePath, tags)
+			log.Printf("SDK Call: client.ScanFile(filePath=%s, tags=%v)", filePath, tags)
+			scanResult, err = client.ScanFile(filePath, tags)
+			if err == nil {
+				log.Printf("SDK Response: client.ScanFile() completed successfully")
+			}
+		} else {
+			// Scan using buffer method (default)
+			// Read file data
+			data, readErr := io.ReadAll(r.Body)
+			if readErr != nil {
+				log.Printf("Error reading request body: %v", readErr)
+				http.Error(w, "Failed to read request body", http.StatusBadRequest)
+				return
+			}
+
+			log.Printf("Starting buffer scan for file: %s with tags: %v", identifier, tags)
+			log.Printf("SDK Call: client.ScanBuffer(data=[]byte[%d bytes], identifier=%s, tags=%v)", len(data), identifier, tags)
+			scanResult, err = client.ScanBuffer(data, identifier, tags)
+			if err == nil {
+				log.Printf("SDK Response: client.ScanBuffer() completed successfully")
+			}
+		}
+
 		if err != nil {
 			log.Printf("Scan error for %s: %v", identifier, err)
 			http.Error(w, "Scanning failed", http.StatusInternalServerError)
 			return
 		}
 
+		// Parse scan result to extract malware names, file hashes, and determine if file is safe
+		isSafe := true // Default to safe unless malware is found
+		var scanData map[string]interface{}
+		if err := json.Unmarshal([]byte(scanResult), &scanData); err == nil {
+			// Extract file hashes for logging
+			if fileSha1, ok := scanData["fileSha1"].(string); ok && fileSha1 != "" {
+				log.Printf("File SHA1: %s", fileSha1)
+			}
+			if fileSha256, ok := scanData["fileSha256"].(string); ok && fileSha256 != "" {
+				log.Printf("File SHA256: %s", fileSha256)
+			}
+
+			// Check if malware was found by examining the result.atse.malwareCount field
+			if result, ok := scanData["result"].(map[string]interface{}); ok {
+				if atse, ok := result["atse"].(map[string]interface{}); ok {
+					if malwareCount, ok := atse["malwareCount"].(float64); ok && malwareCount > 0 {
+						isSafe = false
+						log.Printf("Malware detected! Malware count: %.0f", malwareCount)
+					}
+
+					// Extract malware names from the malware array
+					if malwares, ok := atse["malware"].([]interface{}); ok {
+						for _, malware := range malwares {
+							if malwareMap, ok := malware.(map[string]interface{}); ok {
+								if malwareName, ok := malwareMap["name"].(string); ok {
+									tags = append(tags, "malware_name="+malwareName)
+									log.Printf("Malware name: %s", malwareName)
+								}
+							}
+						}
+					}
+				}
+			}
+
+			// Also check foundMalwares for backward compatibility
+			if foundMalwares, ok := scanData["foundMalwares"].([]interface{}); ok && len(foundMalwares) > 0 {
+				isSafe = false
+				for _, malware := range foundMalwares {
+					if malwareMap, ok := malware.(map[string]interface{}); ok {
+						if malwareName, ok := malwareMap["malwareName"].(string); ok {
+							tags = append(tags, "malware_name="+malwareName)
+							log.Printf("Malware name (from foundMalwares): %s", malwareName)
+						}
+					}
+				}
+			}
+		}
+
 		// Prepare response based on scan result
 		response := ScanResponse{
-			IsSafe:     scanResult == "clean",
+			IsSafe:     isSafe,
 			Message:    scanResult,
 			ScanID:     identifier,
 			Tags:       tags,

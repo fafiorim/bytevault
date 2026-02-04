@@ -25,7 +25,13 @@ const httpsPort = process.env.HTTPS_PORT || 3443;
 
 // System Configuration
 let systemConfig = {
-    securityMode: process.env.SECURITY_MODE || 'disabled', // 'prevent', 'logOnly', or 'disabled'
+    securityMode: process.env.SECURITY_MODE || 'logOnly', // 'prevent', 'logOnly', or 'disabled'
+    scanMethod: process.env.SCAN_METHOD || 'buffer', // 'buffer' or 'file'
+    digestEnabled: process.env.DIGEST_ENABLED !== 'false', // true or false (default: true)
+    pmlEnabled: process.env.PML_ENABLED === 'true', // Predictive Machine Learning (default: false)
+    spnFeedbackEnabled: process.env.SPN_FEEDBACK_ENABLED === 'true', // SPN Feedback (default: false)
+    verboseEnabled: process.env.VERBOSE_ENABLED === 'true', // Verbose scan result (default: false)
+    activeContentEnabled: process.env.ACTIVE_CONTENT_ENABLED === 'true', // Active content detection (default: false)
 };
 
 // Store scan results in memory
@@ -116,7 +122,7 @@ app.post('/api/upload', (req, res, next) => {
                 
                 // Process each file
                 for (const file of req.files) {
-                    const filePath = path.join('./uploads', file.filename);
+                    const filePath = path.resolve('./uploads', file.filename);
 
                     try {
                         // Skip scanning if security mode is disabled
@@ -148,26 +154,56 @@ app.post('/api/upload', (req, res, next) => {
                             continue;
                         }
                         
-                        // Normal scanning process
-                        const fileData = fs.readFileSync(filePath);
-                        
-                        try {
-                            const scanResponse = await axios.post('http://localhost:3001/scan', fileData, {
+                        // Prepare scan request based on method
+                        let scanRequest;
+                        if (systemConfig.scanMethod === 'file') {
+                            // For file method, send only the file path
+                            scanRequest = axios.post('http://localhost:3001/scan', '', {
                                 headers: {
-                                    'Content-Type': 'application/octet-stream',
-                                    'X-Filename': file.originalname
+                                    'Content-Type': 'application/json',
+                                    'X-Filename': file.originalname,
+                                    'X-Scan-Method': 'file',
+                                    'X-File-Path': filePath,
+                                    'X-Digest-Enabled': systemConfig.digestEnabled.toString(),
+                                    'X-PML-Enabled': systemConfig.pmlEnabled.toString(),
+                                    'X-SPN-Feedback-Enabled': systemConfig.spnFeedbackEnabled.toString(),
+                                    'X-Verbose-Enabled': systemConfig.verboseEnabled.toString(),
+                                    'X-Active-Content-Enabled': systemConfig.activeContentEnabled.toString()
                                 }
                             });
+                        } else {
+                            // For buffer method, read and send the file data
+                            const fileData = fs.readFileSync(filePath);
+                            scanRequest = axios.post('http://localhost:3001/scan', fileData, {
+                                headers: {
+                                    'Content-Type': 'application/octet-stream',
+                                    'X-Filename': file.originalname,
+                                    'X-Scan-Method': 'buffer',
+                                    'X-File-Path': filePath,
+                                    'X-Digest-Enabled': systemConfig.digestEnabled.toString(),
+                                    'X-PML-Enabled': systemConfig.pmlEnabled.toString(),
+                                    'X-SPN-Feedback-Enabled': systemConfig.spnFeedbackEnabled.toString(),
+                                    'X-Verbose-Enabled': systemConfig.verboseEnabled.toString(),
+                                    'X-Active-Content-Enabled': systemConfig.activeContentEnabled.toString()
+                                }
+                            });
+                        }
+                        
+                        try {
+                            const scanResponse = await scanRequest;
 
+                            // Use the isSafe field from the scanner response (already properly determined by scanner.go)
+                            const isMalwareFound = !scanResponse.data.isSafe;
+                            
+                            // Parse the detailed scan result for storage
                             const scanResult = JSON.parse(scanResponse.data.message);
-                            const isMalwareFound = scanResult.scanResult === 1 || (scanResult.foundMalwares && scanResult.foundMalwares.length > 0);
                             
                             // Store scan result
                             const scanRecord = {
                                 filename: file.originalname,
                                 size: file.size,
                                 mimetype: file.mimetype,
-                                isSafe: !isMalwareFound,
+                                isSafe: scanResponse.data.isSafe,
                                 scanId: scanResponse.data.scanId,
                                 tags: scanResponse.data.tags || [],
                                 timestamp: new Date(),
@@ -308,14 +344,37 @@ app.get('/api/config', combinedAuth, (req, res) => {
 });
 
 app.post('/api/config', combinedAuth, adminAuth, (req, res) => {
-    const { securityMode } = req.body;
+    const { securityMode, scanMethod, digestEnabled, pmlEnabled, spnFeedbackEnabled, verboseEnabled, activeContentEnabled } = req.body;
     
     if (securityMode && ['prevent', 'logOnly', 'disabled'].includes(securityMode)) {
         systemConfig.securityMode = securityMode;
-        res.json({ message: 'Configuration updated', config: systemConfig });
-    } else {
-        res.status(400).json({ error: 'Invalid configuration' });
     }
+    
+    if (scanMethod && ['buffer', 'file'].includes(scanMethod)) {
+        systemConfig.scanMethod = scanMethod;
+    }
+    
+    if (typeof digestEnabled === 'boolean') {
+        systemConfig.digestEnabled = digestEnabled;
+    }
+    
+    if (typeof pmlEnabled === 'boolean') {
+        systemConfig.pmlEnabled = pmlEnabled;
+    }
+    
+    if (typeof spnFeedbackEnabled === 'boolean') {
+        systemConfig.spnFeedbackEnabled = spnFeedbackEnabled;
+    }
+    
+    if (typeof verboseEnabled === 'boolean') {
+        systemConfig.verboseEnabled = verboseEnabled;
+    }
+    
+    if (typeof activeContentEnabled === 'boolean') {
+        systemConfig.activeContentEnabled = activeContentEnabled;
+    }
+    
+    res.json({ message: 'Configuration updated', config: systemConfig });
 });
 
 app.get('/api/health', basicAuth, async (req, res) => {

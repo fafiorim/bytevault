@@ -182,12 +182,10 @@
                             <div class="config-title">
                                 Disabled Mode
                                 <span class="config-tag disabled">Disabled</span>
-                                <span class="config-tag default">Default</span>
                             </div>
                             <div class="config-description">
                                 No security scanning: Files are uploaded directly without malware scanning.
                                 Use this mode only in trusted environments where scanning is not required.
-                                Note: This is the default mode, scanning can be enabled by an administrator.
                             </div>
                         </div>
                     </label>
@@ -217,11 +215,143 @@
                             <div class="config-title">
                                 Log Only Mode
                                 <span class="config-tag monitor">Monitoring</span>
+                                <span class="config-tag default">Default</span>
                             </div>
                             <div class="config-description">
                                 Monitoring mode: Allows all file uploads but logs and marks any detected threats.
                                 Users will be warned about malicious files, but files will still be stored.
-                                Use this mode for testing or when manual review is needed.
+                                This is the default mode, recommended for monitoring and audit purposes.
+                            </div>
+                        </div>
+                    </label>
+                </div>
+            </div>
+
+            <div class="config-group">
+                <h3>Scan Method</h3>
+                
+                <div class="config-option" id="bufferOption">
+                    <label>
+                        <input type="radio" name="scanMethod" value="buffer">
+                        <div class="config-option-content">
+                            <div class="config-title">
+                                Buffer Scan
+                                <span class="config-tag default">Default</span>
+                            </div>
+                            <div class="config-description">
+                                Loads the entire file into memory and sends it to the scanning API.
+                                Best for small to medium files (recommended for files under 100MB).
+                                Faster for small files but uses more memory.
+                            </div>
+                        </div>
+                    </label>
+                </div>
+
+                <div class="config-option">
+                    <label>
+                        <input type="radio" name="scanMethod" value="file">
+                        <div class="config-option-content">
+                            <div class="config-title">
+                                File Scan
+                                <span class="config-tag secure">Efficient</span>
+                            </div>
+                            <div class="config-description">
+                                Reads the file directly from disk without loading it entirely into memory.
+                                Best for large files (recommended for files over 100MB).
+                                More memory-efficient and reduces network traffic with digest disabled.
+                            </div>
+                        </div>
+                    </label>
+                </div>
+            </div>
+
+            <div class="config-group">
+                <h3>Digest Calculation</h3>
+                
+                <div class="config-option">
+                    <label>
+                        <input type="checkbox" name="digestEnabled" id="digestEnabled">
+                        <div class="config-option-content">
+                            <div class="config-title">
+                                Enable File Hash Calculation
+                                <span class="config-tag secure">Recommended</span>
+                            </div>
+                            <div class="config-description">
+                                Calculate SHA-1 and SHA-256 hashes for scanned files.
+                                Provides file integrity verification and security auditing capabilities.
+                                Recommended for compliance and forensic purposes.
+                                Disable only when scanning large remote files to reduce network traffic.
+                            </div>
+                        </div>
+                    </label>
+                </div>
+            </div>
+
+            <div class="config-group">
+                <h3>Advanced Scanning Features</h3>
+                
+                <div class="config-option">
+                    <label>
+                        <input type="checkbox" name="pmlEnabled" id="pmlEnabled">
+                        <div class="config-option-content">
+                            <div class="config-title">
+                                Enable PML Detection
+                                <span class="config-tag secure">AI-Powered</span>
+                            </div>
+                            <div class="config-description">
+                                Enable Predictive Machine Learning detection for advanced threat identification.
+                                Uses AI to detect obfuscated or polymorphic variants of malware based on behavioral patterns.
+                                Provides enhanced protection against zero-day and unknown threats.
+                            </div>
+                        </div>
+                    </label>
+                </div>
+                
+                <div class="config-option">
+                    <label>
+                        <input type="checkbox" name="spnFeedbackEnabled" id="spnFeedbackEnabled">
+                        <div class="config-option-content">
+                            <div class="config-title">
+                                Enable SPN Feedback
+                            </div>
+                            <div class="config-description">
+                                Enable Smart Protection Network feedback to improve threat intelligence.
+                                Shares scan results with Trend Micro to enhance malware detection capabilities.
+                                Helps protect the global community against emerging threats.
+                            </div>
+                        </div>
+                    </label>
+                </div>
+                
+                <div class="config-option">
+                    <label>
+                        <input type="checkbox" name="verboseEnabled" id="verboseEnabled">
+                        <div class="config-option-content">
+                            <div class="config-title">
+                                Enable Verbose Results
+                            </div>
+                            <div class="config-description">
+                                Enable detailed scan result information with additional metadata.
+                                Provides comprehensive information about scan operations and findings.
+                                Useful for debugging and detailed security analysis.
+                            </div>
+                        </div>
+                    </label>
+                </div>
+                
+                <div class="config-option">
+                    <label>
+                        <input type="checkbox" name="activeContentEnabled" id="activeContentEnabled">
+                        <div class="config-option-content">
+                            <div class="config-title">
+                                Enable Active Content Detection
+                                <span class="config-tag secure">Recommended</span>
+                            </div>
+                            <div class="config-description">
+                                Detect potentially malicious active content in files.
+                                Identifies PDF scripts (embedded JavaScript) and Office macros (VBA code).
+                                Scan results will include type field indicating macro or script detection.
+                                Essential for detecting document-based attacks.
                             </div>
                         </div>
                     </label>
@@ -269,6 +399,18 @@
                 
                 // Set current security mode
                 document.querySelector(`input[name="securityMode"][value="${config.securityMode}"]`).checked = true;
+                
+                // Set current scan method
+                document.querySelector(`input[name="scanMethod"][value="${config.scanMethod}"]`).checked = true;
+                
+                // Set digest enabled checkbox
+                document.getElementById('digestEnabled').checked = config.digestEnabled !== false;
+                
+                // Set advanced scanner features
+                document.getElementById('pmlEnabled').checked = config.pmlEnabled === true;
+                document.getElementById('spnFeedbackEnabled').checked = config.spnFeedbackEnabled === true;
+                document.getElementById('verboseEnabled').checked = config.verboseEnabled === true;
+                document.getElementById('activeContentEnabled').checked = config.activeContentEnabled === true;
 
                 // Handle non-admin users
                 if (!config.isAdmin) {
@@ -286,6 +428,12 @@
         function saveConfig() {
             const saveButton = document.getElementById('saveButton');
             const securityMode = document.querySelector('input[name="securityMode"]:checked').value;
+            const scanMethod = document.querySelector('input[name="scanMethod"]:checked').value;
+            const digestEnabled = document.getElementById('digestEnabled').checked;
+            const pmlEnabled = document.getElementById('pmlEnabled').checked;
+            const spnFeedbackEnabled = document.getElementById('spnFeedbackEnabled').checked;
+            const verboseEnabled = document.getElementById('verboseEnabled').checked;
+            const activeContentEnabled = document.getElementById('activeContentEnabled').checked;
             
             saveButton.disabled = true;
             
@@ -295,7 +443,15 @@
                     'Authorization': 'Basic ' + btoa(username + ':' + password),
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({ securityMode })
+                body: JSON.stringify({ 
+                    securityMode, 
+                    scanMethod, 
+                    digestEnabled, 
+                    pmlEnabled, 
+                    spnFeedbackEnabled, 
+                    verboseEnabled, 
+                    activeContentEnabled 
+                })
             })
             .then(response => {
                 if (!response.ok) {
