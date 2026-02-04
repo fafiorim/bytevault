@@ -3,16 +3,16 @@
 [![GitHub](https://img.shields.io/badge/github-fafiorim%2Ffinguard-blue)](https://github.com/fafiorim/finguard)
 [![Version](https://img.shields.io/badge/version-1.6.0-green)](https://github.com/fafiorim/finguard)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![Powered by](https://img.shields.io/badge/powered%20by-Trend%20Micro%20Cloud%20One-red)](https://www.trendmicro.com/cloudone)
+[![Powered by](https://img.shields.io/badge/powered%20by-TrendAI%20File%20Security-red)](https://www.trendmicro.com/cloudone)
 
 **Disclaimer:** This application is designed for demo purposes only. It is not intended for production deployment under any circumstances. Use at your own risk.
 
-FinGuard is a specialized malware scanner designed for financial institutions, leveraging Trend Micro Cloud One File Security. Built with a focus on compliance and security, it provides comprehensive file scanning capabilities with advanced detection features and detailed audit trails.
+FinGuard is a specialized malware scanner designed for financial institutions, leveraging TrendAI File Security. Built with a focus on compliance and security, it provides comprehensive file scanning capabilities with advanced detection features and detailed audit trails.
 
 ## Features
 
 ### Core Capabilities
-- **Real-time malware scanning** using Trend Micro Cloud One File Security API
+- **Real-time malware scanning** using TrendAI File Security API
 - **Web interface** for file management and monitoring
 - **RESTful API** with Basic Authentication
 - **Configurable security modes** (Prevent/Log Only/Disabled)
@@ -45,7 +45,7 @@ finguard/
 ├── docker-compose.yml      # Optional Docker Compose setup
 ├── start.sh               # Container startup script
 ├── generate-cert.js       # SSL certificate generator
-├── scanner.go             # Go-based scanner service with Trend Micro SDK
+├── scanner.go             # Go-based scanner service with TrendAI SDK
 ├── server.js              # Express API server
 ├── package.json           # Node.js dependencies
 ├── go.mod                 # Go module dependencies
@@ -85,7 +85,7 @@ cd finguard
 # Build the Docker image
 docker build -t finguard:latest .
 
-# Set your Trend Micro Cloud One API key
+# Set your TrendAI File Security API key
 export FSS_API_KEY=your_api_key_here
 
 # Run the container
@@ -137,7 +137,7 @@ FinGuard provides granular control over scanner behavior through the configurati
 - Configurable per-scan via `ml_enabled` tag
 
 **SPN Feedback (Smart Protection Network)**
-- Shares threat intelligence with Trend Micro
+- Shares threat intelligence with TrendAI
 - Improves global threat detection
 - Real-time correlation analysis
 - Tracked via `spn_feedback` tag
@@ -370,7 +370,7 @@ curl -X DELETE http://localhost:3000/api/files/filename.txt -u "user:your_passwo
 | FSS_API_KEY | File Security Services API Key | Required | Yes |
 | FSS_API_ENDPOINT | FSS API Endpoint | antimalware.us-1.cloudone.trendmicro.com:443 | No |
 | FSS_CUSTOM_TAGS | Custom tags for scans | (empty) | No |
-| FSS_REGION | Trend Micro Cloud One region | us-1 | No |
+| FSS_REGION | TrendAI File Security region | us-1 | No |
 | USER_USERNAME | Regular user username | user | No |
 | USER_PASSWORD | Regular user password | user123 | No |
 | ADMIN_USERNAME | Admin username | admin | No |
@@ -461,7 +461,7 @@ docker run -d \
 - Zero remaining vulnerabilities (verified with npm audit and govulncheck)
 
 **Technical Details:**
-- Trend Micro SDK: tm-v1-fs-golang-sdk v1.7.0
+- TrendAI SDK: tm-v1-fs-golang-sdk v1.7.0
 - Go: 1.24.12
 - Node.js: Compatible with latest LTS
 - Multi-architecture: AMD64, ARM64
@@ -580,7 +580,7 @@ curl -X POST http://localhost:3000/api/upload \
 
 ## Contributing
 
-This is a demo application. For production use cases, please contact Trend Micro for enterprise solutions.
+This is a demo application. For production use cases, please contact TrendAI for enterprise solutions.
 
 ## License
 
@@ -590,10 +590,10 @@ MIT License - See LICENSE file for details
 
 For issues and questions:
 - GitHub Issues: https://github.com/fafiorim/finguard/issues
-- Trend Micro Cloud One: https://www.trendmicro.com/cloudone
+- TrendAI File Security: https://www.trendmicro.com/cloudone
 
 ## Acknowledgments
 
-- Built with Trend Micro Cloud One File Security
+- Built with TrendAI File Security
 - Powered by Go 1.24.12 and Node.js
 - Scanner SDK: tm-v1-fs-golang-sdk v1.7.0
