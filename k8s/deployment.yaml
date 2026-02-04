@@ -16,9 +16,13 @@ spec:
     spec:
       containers:
       - name: bytevault
-        image: ${ECR_REGISTRY}/${ECR_REPOSITORY}:latest
+        image: fafiorim/bytevault:latest
+        imagePullPolicy: Always
         ports:
         - containerPort: 3000
+          name: http
+        - containerPort: 3443
+          name: https
         env:
         - name: ADMIN_USERNAME
           valueFrom:
@@ -40,6 +44,11 @@ spec:
             secretKeyRef:
               name: bytevault-secrets
               key: user-password
+        - name: FSS_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: bytevault-secrets
+              key: fss-api-key
         volumeMounts:
         - name: uploads-volume
           mountPath: /app/uploads

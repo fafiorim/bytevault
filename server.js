@@ -318,12 +318,37 @@ app.post('/api/config', combinedAuth, adminAuth, (req, res) => {
     }
 });
 
-app.get('/api/health', basicAuth, (req, res) => {
+app.get('/api/health', basicAuth, async (req, res) => {
+    let scannerStatus = 'unknown';
+    let scannerError = null;
+    
+    // Check if scanner service is accessible
+    if (systemConfig.securityMode !== 'disabled') {
+        try {
+            const scannerResponse = await axios.get('http://localhost:3001/health', { timeout: 2000 });
+            scannerStatus = scannerResponse.data.status || 'healthy';
+        } catch (error) {
+            scannerStatus = 'unhealthy';
+            scannerError = error.code === 'ECONNREFUSED' ? 'Scanner service not responding' : error.message;
+        }
+    } else {
+        scannerStatus = 'disabled';
+    }
+    
+    const overallStatus = scannerStatus === 'unhealthy' ? 'degraded' : 'healthy';
+    
     res.json({
-        status: 'healthy',
+        status: overallStatus,
         timestamp: new Date().toISOString(),
         uptime: process.uptime(),
         securityMode: systemConfig.securityMode,
+        services: {
+            webServer: 'healthy',
+            scanner: {
+                status: scannerStatus,
+                error: scannerError
+            }
+        },
         scanResults: {
             total: scanResults.length,
             safe: scanResults.filter(r => r.isSafe === true).length,
@@ -335,6 +360,18 @@ app.get('/api/health', basicAuth, (req, res) => {
 
 app.get('/api/scan-results', basicAuth, (req, res) => {
     res.json(scanResults);
+});
+
+app.get('/api/scanner-logs', basicAuth, (req, res) => {
+    const fs = require('fs');
+    const logPath = path.join(__dirname, 'scanner.log');
+    
+    fs.readFile(logPath, 'utf8', (err, data) => {
+        if (err) {
+            return res.status(404).json({ error: 'Scanner logs not found' });
+        }
+        res.json({ logs: data });
+    });
 });
 
 // Legacy endpoints for backward compatibility
