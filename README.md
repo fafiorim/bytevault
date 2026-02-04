@@ -61,7 +61,21 @@ finguard/
 │   │   └── nav.html     # Navigation component
 │   ├── index.html        # Welcome/landing page
 │   ├── login.html        # Authentication page
-│   Building from Source
+│   ├── dashboard.html    # File upload & management
+│   ├── scan-results.html # Scan history with filtering
+│   ├── health-status.html # System health dashboard
+│   ├── configuration.html # Scanner configuration (admin)
+│   ├── styles.css        # Application styling
+│   └── script.js         # Client-side JavaScript
+└── samples/               # Sample files for testing
+    ├── README.md         # Sample file documentation
+    ├── safe-file.pdf     # Clean PDF for testing
+    └── file_active_content.pdf # PDF with JavaScript
+```
+
+## Quick Start
+
+### Building from Source
 
 ```bash
 # Clone the repository
@@ -81,21 +95,7 @@ docker run -d \
   -e FSS_API_KEY=$FSS_API_KEY \
   -e SECURITY_MODE="logOnly" \
   --name finguard \
-  finguard
-```bash
-# Clone and build
-git clone https://github.com/fafiorim/bytevault.git
-cd bytevault
-docker build -t bytevault:latest .
-
-# Run locally built image
-docker run -d \
-  -p 3000:3000 \
-  -p 3443:3443 \
-  -e FSS_API_KEY=$FSS_API_KEY \
-  -e SECURITY_MODE="prevent" \
-  --name bytevault \
-  bytevault:latest
+  finguard:latest
 ```
 
 ### Access the Application
@@ -103,24 +103,14 @@ docker run -d \
 - **HTTP**: http://localhost:3000
 - **HTTPS**: https://localhost:3443
 - **Health Status**: http://localhost:3000/health-status
-- **API Endpoints**: http://localhost:3000/api/* (with Basic Auth)
-
-### Default Credentials
-- Username: `admin`
-- Password: `changeMe123`
-
-## Kubernetes Deployment
-
-Bytevault includes production-ready Kubernetes manifests in the `k8s/` directory.
-
-### Quick Deploy
-Configuration**: http://localhost:3000/configuration
+- **Configuration**: http://localhost:3000/configuration
 - **API Endpoints**: http://localhost:3000/api/* (with Basic Auth)
 
 ### Default Credentials
 - **Admin**: `admin` / `admin123`
-- **User**: `user` / `usern-password=your_admin_pass \
-  -Scanner Configuration
+- **User**: `user` / `user123`
+
+## Scanner Configuration
 
 FinGuard provides granular control over scanner behavior through the configuration page (admin access required).
 
@@ -175,7 +165,7 @@ FinGuard Results**
 
 Each scan includes tags for audit and compliance:
 ```
-FinGuardard                    # Application identifier
+app=finguard                    # Application identifier
 file_type=.pdf                  # File extension
 scan_method=buffer              # Scan method used
 ml_enabled=true                 # PML detection status
@@ -196,7 +186,17 @@ Upload these samples with different configurations to see how various detection 
 
 ## Kubernetes Deployment
 
-FinGuard
+FinGuard includes production-ready Kubernetes manifests in the `k8s/` directory.
+
+### Quick Deploy
+
+```bash
+# Create secret with your FSS API key
+kubectl create secret generic finguard-secrets \
+  --from-literal=admin-password=your_admin_pass \
+  --from-literal=user-password=your_user_pass \
+  --from-literal=fss-api-key=your_fss_api_key
+
 # Deploy ConfigMap
 kubectl apply -f k8s/configmap.yaml
 
@@ -207,7 +207,8 @@ kubectl apply -f k8s/deployment.yaml
 kubectl apply -f k8s/service.yaml
 
 # Get external IP
-kubectl get svc bytevault-service
+kubectl get svc finguard-service
+```
 ```
 
 ### Kubernetes Resources
@@ -227,7 +228,7 @@ kubectl get svc bytevault-service
 
 ## Security Modes
 
-ByteVault supports three security modes:
+FinGuard supports three security modes:
 
 ### Disabled Mode (Default)
 - Bypasses malware scanning
@@ -250,7 +251,7 @@ ByteVault supports three security modes:
 
 ## Authentication
 
-ByteVault supports two authentication methods:
+FinGuard supports two authentication methods:
 
 ### Web Interface Authentication
 - Session-based authentication
@@ -294,8 +295,7 @@ curl -X POST http://localhost:3000/api/upload \
 # Example Response (Safe File)
 {
     "message": "File uploaded and scanned successfully",
-    "results": [{(empty) | No |
-| FSS_REGION | Trend Micro Cloud One region | us-1
+    "results": [{
         "file": "example.txt",
         "status": "success",
         "message": "File uploaded and scanned successfully",
@@ -359,7 +359,83 @@ curl http://localhost:3000/api/scanner-logs -u "admin:admin_password"
 ```
 
 #### Delete File
-```bash6.0 (FinGuard)
+```bash
+curl -X DELETE http://localhost:3000/api/files/filename.txt -u "user:your_password"
+```
+
+## Environment Variables
+
+| Variable | Description | Default | Required |
+|----------|-------------|---------|----------|
+| FSS_API_KEY | File Security Services API Key | Required | Yes |
+| FSS_API_ENDPOINT | FSS API Endpoint | antimalware.us-1.cloudone.trendmicro.com:443 | No |
+| FSS_CUSTOM_TAGS | Custom tags for scans | (empty) | No |
+| FSS_REGION | Trend Micro Cloud One region | us-1 | No |
+| USER_USERNAME | Regular user username | user | No |
+| USER_PASSWORD | Regular user password | user123 | No |
+| ADMIN_USERNAME | Admin username | admin | No |
+| ADMIN_PASSWORD | Admin password | admin123 | No |
+| SECURITY_MODE | Default security mode (prevent/logOnly/disabled) | disabled | No |
+
+## Ports
+
+| Port | Protocol | Description |
+|------|----------|-------------|
+| 3000 | HTTP | Web interface and API |
+| 3443 | HTTPS | Secure web interface (self-signed cert) |
+| 3001 | HTTP | Internal scanner service (not exposed) |
+
+## Web Interface
+
+### Dashboard
+- File upload with real-time scanning
+- File listing and management
+- Delete functionality
+- Clear scan status indicators
+- Supports drag-and-drop file upload
+
+### Scan Results
+- View scan history
+- Filter by safe/unsafe/unscanned files
+- Detailed scan information
+- Clear status badges for each scan state
+- Real-time updates
+
+### Health Status
+- **Enhanced health monitoring with real-time service validation**
+- **Scanner service connectivity checks**
+- **Three-state health reporting** (healthy, degraded, unhealthy)
+- **Scanner logs viewer** - Click "Total Scans" to view detailed logs
+- Scan statistics by category (safe, unsafe, not scanned)
+- Security mode status
+- System uptime tracking
+- Error reporting with detailed messages
+
+### Configuration
+- Security mode management
+- System settings
+- Real-time updates
+- Role-based access control
+- Disabled when admin account is not configured
+
+## Volumes and Persistence
+
+Mount volumes for persistent storage:
+```bash
+docker run -d \
+  -p 3000:3000 \
+  -v /path/on/host:/app/uploads \
+  -e FSS_API_KEY=$FSS_API_KEY \
+  -e USER_USERNAME="user" \
+  -e USER_PASSWORD="your_password" \
+  -e SECURITY_MODE="prevent" \
+  --name finguard \
+  finguard:latest
+```
+
+## Version Information
+
+### Latest Release: v1.6.0 (FinGuard)
 
 **What's New:**
 - 🐛 **Fixed EICAR malware detection bug** - Files now correctly identified as unsafe
@@ -401,73 +477,9 @@ curl http://localhost:3000/api/scanner-logs -u "admin:admin_password"
 - File upload with real-time scanning
 - File listing and management
 - Delete functionality
-- Clear scan status indicators
-- Supports drag-and-drop file upload
-
-### Scan Results
-- View scan history
-- Filter by safe/unsafe/unscanned files
-- Detailed scan information
-- Clear status badges for each scan state
-- Real-time updates
-
-### Health Status
-- **Enhanced health monitoring with real-time service validation**
-- **Scanner service connectivity checks**
-- **Three-state health reporting** (healthy, degraded, unhealthy)
-- **Scanner logs viewer** - Click "Total Scans" to view detailed logs
-- Scan statistics by category (safe, unsafe, not scanned)
-- Security mode status
-- System uptime tracking
-- Error reporting with detailed messages
-
-### Configuration
-- Security mode management
-- System settings
-- Real-time updates
-- Role-based access control
-- Disabled when admin account is not configured
-
-## Volumes and Persistence
-
-Mount volumes for persistent storage:
-```bash
-docker run -d \
-  -p 3000:3000 -p 3001:3001 \
-  -v /path/on/host:/app/uploads \
-  -e FSS_API_KEY=$FSS_API_KEY \
-  -e USER_USERNAME="user" \
-  -e USER_PASSWORD="your_password" \
-  -e SECURITY_MODE="prevent" \
-  --name bytevault \
-  bytevault:latest
-```
-
-## Version Information
-
-### Latest Release: v1.5.0
-
-**What's New:**
-- Enhanced health checks with real-time service validation
-- Scanner logs viewer (click "Total Scans" on health status page)
-- Degraded status reporting for better observability
-- Kubernetes deployment manifests
-- Docker Hub multi-architecture images
-
-**Security Updates:**
-- Updated Go from 1.21 to 1.24.12 (fixes 16 stdlib vulnerabilities)
-- Updated golang.org/x/net from v0.22.0 to v0.49.0
-- Updated bcrypt from 5.1.1 to 6.0.0 (fixes 3 high severity vulnerabilities)
-- Zero remaining vulnerabilities (verified with npm audit and govulncheck)
-
-**Docker Images:**
-- `fafiorim/bytevault:v1.5.0` - Stable release
-- `fafiorim/bytevault:latest` - Latest build
-- Multi-architecture: AMD64, ARM64
-- Image size: 161MB
-
 **Previous Versions:**
-- v1.0.0 - Initial release
+- v1.5.0 - ByteVault with enhanced health monitoring
+- v1.0.0 - Initial ByteVault release
 
 ## Troubleshooting
 
@@ -481,7 +493,7 @@ docker run -d \
 
 #### Scanner Issues
 - Verify FSS_API_KEY is set correctly
-- Check scanner logs: `docker logs bytevault | grep scanner`
+- Check scanner logs: `docker logs finguard | grep scanner`
 - Verify both ports (3000 and 3001) are accessible
 - Check if security mode is not disabled
 
@@ -498,6 +510,90 @@ docker run -d \
 
 View logs:
 ```bash
-docker logs bytevault
-docker logs -f bytevault
+docker logs finguard
+docker logs -f finguard
+
+# View scanner service logs
+docker exec finguard cat /app/scanner.log
+docker exec finguard tail -f /app/scanner.log
 ```
+
+## Testing
+
+### Test with Sample Files
+
+```bash
+# Upload safe PDF
+curl -X POST http://localhost:3000/api/upload \
+  -u 'admin:admin123' \
+  -F 'file=@samples/safe-file.pdf'
+
+# Enable active content detection
+curl -X POST http://localhost:3000/api/config \
+  -u 'admin:admin123' \
+  -H 'Content-Type: application/json' \
+  -d '{"activeContentEnabled":true}'
+
+# Upload PDF with JavaScript
+curl -X POST http://localhost:3000/api/upload \
+  -u 'admin:admin123' \
+  -F 'file=@samples/file_active_content.pdf'
+```
+
+### Test Malware Detection
+
+```bash
+# Download EICAR test file
+curl -o eicar.com https://secure.eicar.org/eicar.com
+
+# Upload EICAR (should be detected as malware)
+curl -X POST http://localhost:3000/api/upload \
+  -u 'admin:admin123' \
+  -F 'file=@eicar.com'
+```
+
+### Test Advanced Features
+
+```bash
+# Enable all advanced features
+curl -X POST http://localhost:3000/api/config \
+  -u 'admin:admin123' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "securityMode":"logOnly",
+    "scanMethod":"buffer",
+    "digestEnabled":true,
+    "pmlEnabled":true,
+    "spnFeedbackEnabled":true,
+    "verboseEnabled":true,
+    "activeContentEnabled":true
+  }'
+
+# Check configuration
+curl http://localhost:3000/api/config -u 'admin:admin123'
+
+# Upload a file to see all features in action
+curl -X POST http://localhost:3000/api/upload \
+  -u 'admin:admin123' \
+  -F 'file=@samples/file_active_content.pdf'
+```
+
+## Contributing
+
+This is a demo application. For production use cases, please contact Trend Micro for enterprise solutions.
+
+## License
+
+MIT License - See LICENSE file for details
+
+## Support
+
+For issues and questions:
+- GitHub Issues: https://github.com/fafiorim/finguard/issues
+- Trend Micro Cloud One: https://www.trendmicro.com/cloudone
+
+## Acknowledgments
+
+- Built with Trend Micro Cloud One File Security
+- Powered by Go 1.24.12 and Node.js
+- Scanner SDK: tm-v1-fs-golang-sdk v1.7.0
