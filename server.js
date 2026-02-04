@@ -397,15 +397,15 @@ app.use('/uploads', basicAuth, express.static('uploads'));
 
 // Web Routes
 app.get('/', (req, res) => {
-    if (req.session.user) {
+    if (req.session && req.session.user) {
         res.redirect('/dashboard');
     } else {
-        res.redirect('/login');
+        res.sendFile(path.join(__dirname, 'public', 'index.html'));
     }
 });
 
 app.get('/login', (req, res) => {
-    if (req.session.user) {
+    if (req.session && req.session.user) {
         return res.redirect('/dashboard');
     }
     res.sendFile(path.join(__dirname, 'public', 'login.html'));
