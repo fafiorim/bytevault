@@ -38,13 +38,58 @@ endobj
 endobj
 5 0 obj
 <<
-/Length 105
+/Length 575
 >>
 stream
 BT
 /F1 18 Tf
 50 700 Td
 (PDF with Active Content - JavaScript Embedded) Tj
+ET
+BT
+/F1 10 Tf
+50 650 Td
+(This PDF contains embedded JavaScript for testing active content detection.) Tj
+ET
+BT
+/F1 10 Tf
+50 630 Td
+(When scanned with Active Content Detection enabled, this will be flagged.) Tj
+ET
+BT
+/F1 12 Tf
+50 600 Td
+(Embedded JavaScript Actions:) Tj
+ET
+BT
+/F1 9 Tf
+50 580 Td
+(1. Document Open Action:) Tj
+ET
+BT
+/F1 8 Tf
+60 565 Td
+(   app.alert\('Document opened with active content'\);) Tj
+ET
+BT
+/F1 9 Tf
+50 545 Td
+(2. Named JavaScript:) Tj
+ET
+BT
+/F1 8 Tf
+60 530 Td
+(   app.alert\('This PDF contains active JavaScript content...'\);) Tj
+ET
+BT
+/F1 10 Tf
+50 500 Td
+(Security Note: JavaScript in PDFs can be used for malicious purposes) Tj
+ET
+BT
+/F1 10 Tf
+50 485 Td
+(including phishing, data exfiltration, and unauthorized actions.) Tj
 ET
 endstream
 endobj

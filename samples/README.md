@@ -17,12 +17,32 @@ A clean, safe PDF file with simple text content. This file should pass all secur
 ### file_active_content.pdf
 A PDF file containing embedded JavaScript code. This file demonstrates active content detection capabilities.
 
+**Embedded JavaScript Code:**
+This PDF contains two JavaScript actions:
+
+1. **Document Open Action** - Executes when PDF is opened:
+   ```javascript
+   app.alert('Document opened with active content');
+   ```
+
+2. **Named JavaScript Action** - Embedded script:
+   ```javascript
+   app.alert('This PDF contains active JavaScript content for testing active content detection');
+   ```
+
 **Expected Scan Result:**
 - Status: Safe (no malware)
-- Active Content: Detected (when active content detection is enabled)
-- Contains: JavaScript code that triggers `app.alert()` when opened
+- Active Content Count: 1 (when active content detection is enabled)
+- Active Content Count: N/A (when active content detection is disabled)
+- Scanner detects embedded JavaScript as potentially risky content
 
-**Use Case:** Testing active content detection feature. When "Enable Active Content Detection" is enabled in settings, this file should be flagged for containing potentially risky JavaScript code.
+**Security Implications:**
+- JavaScript in PDFs can execute arbitrary code
+- Can be used for phishing attacks or data exfiltration
+- May trigger unwanted actions without user consent
+- Common in malicious documents targeting enterprises
+
+**Use Case:** Testing active content detection feature. When "Enable Active Content Detection" is enabled in settings, this file should be flagged for containing potentially risky JavaScript code. This simulates real-world scenarios where attackers embed malicious scripts in documents.
 
 ## Testing Instructions
 
