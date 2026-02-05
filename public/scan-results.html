@@ -335,7 +335,8 @@
 
         function getFileHash(scanDetails) {
             if (!scanDetails) return 'N/A';
-            const sha256 = scanDetails.fileSha256 || scanDetails.fileSha1;
+            // Check both uppercase (fileSHA256) and lowercase (fileSha256) naming conventions
+            const sha256 = scanDetails.fileSHA256 || scanDetails.fileSha256 || scanDetails.fileSHA1 || scanDetails.fileSha1;
             if (!sha256) return 'N/A';
             // Truncate hash for display with tooltip showing full hash
             const truncated = sha256.length > 16 ? sha256.substring(0, 16) + '...' : sha256;
