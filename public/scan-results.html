@@ -36,7 +36,7 @@
 
         .scan-grid-header {
             display: grid;
-            grid-template-columns: auto 2fr 1fr 1fr 1fr 1fr 0.8fr 1fr 1fr;
+            grid-template-columns: auto 2fr 1fr 1fr 1fr 1fr 0.8fr 1.5fr 1fr 1fr;
             gap: 1rem;
             padding: 1rem;
             background-color: var(--primary-color);
@@ -46,7 +46,7 @@
 
         .scan-grid-row {
             display: grid;
-            grid-template-columns: auto 2fr 1fr 1fr 1fr 1fr 0.8fr 1fr 1fr;
+            grid-template-columns: auto 2fr 1fr 1fr 1fr 1fr 0.8fr 1.5fr 1fr 1fr;
             gap: 1rem;
             padding: 1rem;
             border-bottom: 1px solid #eee;
@@ -218,6 +218,7 @@
                     <div>File Status</div>
                     <div>Security Mode</div>
                     <div>Scan Method</div>
+                    <div>File Hash (SHA256)</div>
                     <div>Tags</div>
                     <div>Timestamp</div>
                 </div>
@@ -282,6 +283,15 @@
             return 'N/A';
         }
 
+        function getFileHash(scanDetails) {
+            if (!scanDetails) return 'N/A';
+            const sha256 = scanDetails.fileSha256 || scanDetails.fileSha1;
+            if (!sha256) return 'N/A';
+            // Truncate hash for display with tooltip showing full hash
+            const truncated = sha256.length > 16 ? sha256.substring(0, 16) + '...' : sha256;
+            return `<span title="${sha256}" style="cursor: help; font-family: monospace; font-size: 0.85rem;">${truncated}</span>`;
+        }
+
         function loadScanResults(filter = 'all') {
             fetch('/api/scan-results', {
                 headers: {
@@ -328,6 +338,9 @@
                                 <span class="security-mode" title="Scan method used">
                                     ${getScanMethod(scan.tags)}
                                 </span>
+                            </div>
+                            <div>
+                                ${getFileHash(scan.scanDetails)}
                             </div>
                             <div class="scan-tags">
                                 ${scan.tags.map(tag => `
