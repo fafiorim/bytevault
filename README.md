@@ -209,7 +209,6 @@ kubectl apply -f k8s/service.yaml
 # Get external IP
 kubectl get svc finguard-service
 ```
-```
 
 ### Kubernetes Resources
 
