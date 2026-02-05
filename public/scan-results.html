@@ -338,9 +338,8 @@
             // Check both uppercase (fileSHA256) and lowercase (fileSha256) naming conventions
             const sha256 = scanDetails.fileSHA256 || scanDetails.fileSha256 || scanDetails.fileSHA1 || scanDetails.fileSha1;
             if (!sha256) return 'N/A';
-            // Truncate hash for display with tooltip showing full hash
-            const truncated = sha256.length > 16 ? sha256.substring(0, 16) + '...' : sha256;
-            return `<span title="${sha256}" style="cursor: help; font-family: monospace; font-size: 0.85rem;">${truncated}</span>`;
+            // Display truncated but allow copying full hash
+            return `<span title="Click to copy full hash" style="cursor: pointer; font-family: monospace; font-size: 0.85rem; max-width: 140px; display: inline-block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: middle;" onclick="navigator.clipboard.writeText('${sha256}').then(() => {this.title='Copied!'; setTimeout(() => this.title='Click to copy full hash', 2000);})">${sha256}</span>`;
         }
 
         function loadScanResults(filter = 'all') {
