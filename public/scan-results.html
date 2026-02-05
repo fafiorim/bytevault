@@ -210,6 +210,7 @@
                     <option value="all">All Files</option>
                     <option value="safe">Safe Files</option>
                     <option value="unsafe">Unsafe Files</option>
+                    <option value="active-content">Active Content</option>
                     <option value="disabled">Not Scanned</option>
                 </select>
             </div>
@@ -354,6 +355,22 @@
                     if (filter === 'all') return true;
                     if (filter === 'safe') return scan.isSafe === true;
                     if (filter === 'unsafe') return scan.isSafe === false;
+                    if (filter === 'active-content') {
+                        if (scan.scanDetails) {
+                            // Check non-verbose format
+                            if (scan.scanDetails.foundActiveContents && scan.scanDetails.foundActiveContents.length > 0) {
+                                return true;
+                            }
+                            // Check verbose format
+                            if (scan.scanDetails.result && scan.scanDetails.result.atse) {
+                                const activeContentCount = scan.scanDetails.result.atse.activeContentCount;
+                                if (activeContentCount > 0) {
+                                    return true;
+                                }
+                            }
+                        }
+                        return false;
+                    }
                     if (filter === 'disabled') return scan.isSafe === null || scan.tags.includes('scan_disabled');
                     return true;
                 });
