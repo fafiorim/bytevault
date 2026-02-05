@@ -27,6 +27,7 @@ const httpsPort = process.env.HTTPS_PORT || 3443;
 let systemConfig = {
     securityMode: process.env.SECURITY_MODE || 'logOnly', // 'prevent', 'logOnly', or 'disabled'
     scanMethod: process.env.SCAN_METHOD || 'buffer', // 'buffer' or 'file'
+    scannerUrl: process.env.SCANNER_URL || 'http://localhost:3001', // Scanner service URL
     digestEnabled: process.env.DIGEST_ENABLED !== 'false', // true or false (default: true)
     pmlEnabled: process.env.PML_ENABLED === 'true', // Predictive Machine Learning (default: false)
     spnFeedbackEnabled: process.env.SPN_FEEDBACK_ENABLED === 'true', // SPN Feedback (default: false)
@@ -158,7 +159,7 @@ app.post('/api/upload', (req, res, next) => {
                         let scanRequest;
                         if (systemConfig.scanMethod === 'file') {
                             // For file method, send only the file path
-                            scanRequest = axios.post('http://localhost:3001/scan', '', {
+                            scanRequest = axios.post(`${systemConfig.scannerUrl}/scan`, '', {
                                 headers: {
                                     'Content-Type': 'application/json',
                                     'X-Filename': file.originalname,
@@ -174,7 +175,7 @@ app.post('/api/upload', (req, res, next) => {
                         } else {
                             // For buffer method, read and send the file data
                             const fileData = fs.readFileSync(filePath);
-                            scanRequest = axios.post('http://localhost:3001/scan', fileData, {
+                            scanRequest = axios.post(`${systemConfig.scannerUrl}/scan`, fileData, {
                                 headers: {
                                     'Content-Type': 'application/octet-stream',
                                     'X-Filename': file.originalname,
@@ -344,7 +345,7 @@ app.get('/api/config', combinedAuth, (req, res) => {
 });
 
 app.post('/api/config', combinedAuth, adminAuth, (req, res) => {
-    const { securityMode, scanMethod, digestEnabled, pmlEnabled, spnFeedbackEnabled, verboseEnabled, activeContentEnabled } = req.body;
+    const { securityMode, scanMethod, scannerUrl, digestEnabled, pmlEnabled, spnFeedbackEnabled, verboseEnabled, activeContentEnabled } = req.body;
     
     if (securityMode && ['prevent', 'logOnly', 'disabled'].includes(securityMode)) {
         systemConfig.securityMode = securityMode;
@@ -352,6 +353,16 @@ app.post('/api/config', combinedAuth, adminAuth, (req, res) => {
     
     if (scanMethod && ['buffer', 'file'].includes(scanMethod)) {
         systemConfig.scanMethod = scanMethod;
+    }
+    
+    if (scannerUrl && typeof scannerUrl === 'string') {
+        // Validate URL format
+        try {
+            new URL(scannerUrl);
+            systemConfig.scannerUrl = scannerUrl.replace(/\/$/, ''); // Remove trailing slash
+        } catch (e) {
+            return res.status(400).json({ error: 'Invalid scanner URL format' });
+        }
     }
     
     if (typeof digestEnabled === 'boolean') {
@@ -384,7 +395,7 @@ app.get('/api/health', basicAuth, async (req, res) => {
     // Check if scanner service is accessible
     if (systemConfig.securityMode !== 'disabled') {
         try {
-            const scannerResponse = await axios.get('http://localhost:3001/health', { timeout: 2000 });
+            const scannerResponse = await axios.get(`${systemConfig.scannerUrl}/health`, { timeout: 2000 });
             scannerStatus = scannerResponse.data.status || 'healthy';
         } catch (error) {
             scannerStatus = 'unhealthy';

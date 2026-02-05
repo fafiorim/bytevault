@@ -266,6 +266,25 @@
             </div>
 
             <div class="config-group">
+                <h3>Scanner Configuration</h3>
+                
+                <div class="config-option">
+                    <div class="config-option-content">
+                        <div class="config-title">
+                            Scanner Service URL
+                        </div>
+                        <div class="config-description" style="margin-bottom: 1rem;">
+                            Specify the URL of the scanner service. Use http://localhost:3001 for local scanner
+                            or provide an external scanner URL (e.g., http://192.168.1.10:3001 or http://scanner.example.com:3001).
+                        </div>
+                        <input type="text" name="scannerUrl" id="scannerUrl" 
+                               placeholder="http://localhost:3001" 
+                               style="width: 100%; padding: 0.75rem; border: 1px solid #ddd; border-radius: 4px; font-family: monospace; font-size: 0.9rem;">
+                    </div>
+                </div>
+            </div>
+
+            <div class="config-group">
                 <h3>Digest Calculation</h3>
                 
                 <div class="config-option">
@@ -403,6 +422,9 @@
                 // Set current scan method
                 document.querySelector(`input[name="scanMethod"][value="${config.scanMethod}"]`).checked = true;
                 
+                // Set scanner URL
+                document.getElementById('scannerUrl').value = config.scannerUrl || 'http://localhost:3001';
+                
                 // Set digest enabled checkbox
                 document.getElementById('digestEnabled').checked = config.digestEnabled !== false;
                 
@@ -429,11 +451,25 @@
             const saveButton = document.getElementById('saveButton');
             const securityMode = document.querySelector('input[name="securityMode"]:checked').value;
             const scanMethod = document.querySelector('input[name="scanMethod"]:checked').value;
+            const scannerUrl = document.getElementById('scannerUrl').value.trim();
             const digestEnabled = document.getElementById('digestEnabled').checked;
             const pmlEnabled = document.getElementById('pmlEnabled').checked;
             const spnFeedbackEnabled = document.getElementById('spnFeedbackEnabled').checked;
             const verboseEnabled = document.getElementById('verboseEnabled').checked;
             const activeContentEnabled = document.getElementById('activeContentEnabled').checked;
+            
+            // Validate scanner URL
+            if (!scannerUrl) {
+                showStatus('Scanner URL cannot be empty', 'error');
+                return;
+            }
+            
+            try {
+                new URL(scannerUrl);
+            } catch (e) {
+                showStatus('Invalid scanner URL format. Please use format: http://host:port', 'error');
+                return;
+            }
             
             saveButton.disabled = true;
             
@@ -445,7 +481,8 @@
                 },
                 body: JSON.stringify({ 
                     securityMode, 
-                    scanMethod, 
+                    scanMethod,
+                    scannerUrl, 
                     digestEnabled, 
                     pmlEnabled, 
                     spnFeedbackEnabled, 
