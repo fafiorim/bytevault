@@ -262,11 +262,18 @@
             if (scan.tags.includes('scan_disabled') || scan.isSafe === null) {
                 return 'disabled';
             }
-            // Check for active content
-            if (scan.scanDetails && scan.scanDetails.result && scan.scanDetails.result.atse) {
-                const activeContentCount = scan.scanDetails.result.atse.activeContentCount;
-                if (activeContentCount > 0) {
+            // Check for active content in scanDetails
+            if (scan.scanDetails) {
+                // Check foundActiveContents array (non-verbose format)
+                if (scan.scanDetails.foundActiveContents && scan.scanDetails.foundActiveContents.length > 0) {
                     return 'warning';
+                }
+                // Check verbose format as fallback
+                if (scan.scanDetails.result && scan.scanDetails.result.atse) {
+                    const activeContentCount = scan.scanDetails.result.atse.activeContentCount;
+                    if (activeContentCount > 0) {
+                        return 'warning';
+                    }
                 }
             }
             return scan.isSafe ? 'safe' : 'unsafe';
@@ -276,11 +283,18 @@
             if (scan.tags.includes('scan_disabled') || scan.isSafe === null) {
                 return '⚪ Not Scanned';
             }
-            // Check for active content
-            if (scan.scanDetails && scan.scanDetails.result && scan.scanDetails.result.atse) {
-                const activeContentCount = scan.scanDetails.result.atse.activeContentCount;
-                if (activeContentCount > 0) {
+            // Check for active content in scanDetails
+            if (scan.scanDetails) {
+                // Check foundActiveContents array (non-verbose format)
+                if (scan.scanDetails.foundActiveContents && scan.scanDetails.foundActiveContents.length > 0) {
                     return '⚠ Active Content';
+                }
+                // Check verbose format as fallback
+                if (scan.scanDetails.result && scan.scanDetails.result.atse) {
+                    const activeContentCount = scan.scanDetails.result.atse.activeContentCount;
+                    if (activeContentCount > 0) {
+                        return '⚠ Active Content';
+                    }
                 }
             }
             return scan.isSafe ? '✓ Safe' : '⚠ Unsafe';
@@ -290,13 +304,21 @@
             if (scan.tags.includes('scan_disabled') || scan.isSafe === null) {
                 return 'File was not scanned - Scanning disabled';
             }
-            // Check for active content
-            if (scan.scanDetails && scan.scanDetails.result && scan.scanDetails.result.atse) {
-                const activeContentCount = scan.scanDetails.result.atse.activeContentCount;
-                if (activeContentCount > 0) {
-                    const activeContent = scan.scanDetails.result.atse.activeContent || [];
-                    const types = activeContent.map(ac => ac.type).join(', ');
+            // Check for active content in scanDetails
+            if (scan.scanDetails) {
+                // Check foundActiveContents array (non-verbose format)
+                if (scan.scanDetails.foundActiveContents && scan.scanDetails.foundActiveContents.length > 0) {
+                    const types = scan.scanDetails.foundActiveContents.map(ac => ac.type).join(', ');
                     return `File contains active content (${types}) - Review recommended`;
+                }
+                // Check verbose format as fallback
+                if (scan.scanDetails.result && scan.scanDetails.result.atse) {
+                    const activeContentCount = scan.scanDetails.result.atse.activeContentCount;
+                    if (activeContentCount > 0) {
+                        const activeContent = scan.scanDetails.result.atse.activeContent || [];
+                        const types = activeContent.map(ac => ac.type).join(', ');
+                        return `File contains active content (${types}) - Review recommended`;
+                    }
                 }
             }
             return scan.isSafe ? 'File is safe' : 'File is unsafe';
