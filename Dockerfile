@@ -26,7 +26,7 @@ ENV ADMIN_USERNAME=admin \
     FSS_CUSTOM_TAGS="" \
     HTTP_PORT=3000 \
     HTTPS_PORT=3443 \
-    SECURITY_MODE=disabled
+    SECURITY_MODE=logOnly
 
 WORKDIR /app
 # Install Node.js and npm

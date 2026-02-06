@@ -31,26 +31,43 @@
         .scan-grid {
             border: 1px solid #eee;
             border-radius: 8px;
-            overflow: hidden;
+            overflow-x: auto;
+            overflow-y: auto;
+            max-height: 70vh;
         }
 
         .scan-grid-header {
             display: grid;
-            grid-template-columns: auto 2fr 1fr 1fr 1fr 1fr 0.8fr 1.5fr 1fr 1fr;
-            gap: 1rem;
-            padding: 1rem;
+            grid-template-columns: 90px minmax(150px, 2fr) 80px 140px 90px 110px 100px 140px 110px 120px 140px;
+            gap: 0.75rem;
+            padding: 0.875rem;
             background-color: var(--primary-color);
             color: white;
             font-weight: bold;
+            font-size: 0.8rem;
+            min-width: max-content;
+            position: sticky;
+            top: 0;
+            z-index: 10;
         }
 
         .scan-grid-row {
             display: grid;
-            grid-template-columns: auto 2fr 1fr 1fr 1fr 1fr 0.8fr 1.5fr 1fr 1fr;
-            gap: 1rem;
-            padding: 1rem;
+            grid-template-columns: 90px minmax(150px, 2fr) 80px 140px 90px 110px 100px 140px 110px 120px 140px;
+            gap: 0.75rem;
+            padding: 1rem 0.875rem;
             border-bottom: 1px solid #eee;
             align-items: center;
+            font-size: 0.8rem;
+            min-width: max-content;
+        }
+
+        .scan-filename {
+            font-weight: 500;
+            color: #1f2937;
+            word-break: break-word;
+            min-width: 150px;
+            font-size: 0.8rem;
         }
 
         .scan-grid-row:last-child {
@@ -91,16 +108,19 @@
         }
 
         .action-badge {
-            padding: 0.25rem 0.75rem;
+            padding: 0.25rem 0.6rem;
             border-radius: 4px;
-            font-size: 0.875rem;
+            font-size: 0.75rem;
             background: #f3f4f6;
             color: #374151;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
         }
 
         .file-status {
-            font-size: 0.875rem;
-            padding: 0.25rem 0.75rem;
+            font-size: 0.75rem;
+            padding: 0.25rem 0.6rem;
             border-radius: 4px;
             text-align: center;
         }
@@ -116,8 +136,8 @@
         }
 
         .security-mode {
-            font-size: 0.875rem;
-            padding: 0.25rem 0.75rem;
+            font-size: 0.75rem;
+            padding: 0.25rem 0.6rem;
             border-radius: 4px;
             text-align: center;
             background: #f3f4f6;
@@ -126,16 +146,21 @@
 
         .scan-tags {
             display: flex;
-            gap: 0.5rem;
+            gap: 0.25rem;
             flex-wrap: wrap;
+            max-height: 4.5rem;
+            overflow-y: auto;
+            overflow-x: hidden;
+            padding-right: 0.25rem;
         }
 
         .scan-tag {
             background: #e5e7eb;
             color: #4b5563;
-            padding: 0.25rem 0.5rem;
-            border-radius: 4px;
-            font-size: 0.75rem;
+            padding: 0.15rem 0.4rem;
+            border-radius: 3px;
+            font-size: 0.7rem;
+            white-space: nowrap;
         }
 
         .no-results {
@@ -224,6 +249,7 @@
                     <div>File Status</div>
                     <div>Security Mode</div>
                     <div>Scan Method</div>
+                    <div>Scanner Source</div>
                     <div>File Hash (SHA256)</div>
                     <div>Tags</div>
                     <div>Timestamp</div>
@@ -335,12 +361,24 @@
         }
 
         function getFileHash(scanDetails) {
-            if (!scanDetails) return 'N/A';
+            if (!scanDetails) return '<span style="color: #9ca3af;">N/A</span>';
             // Check both uppercase (fileSHA256) and lowercase (fileSha256) naming conventions
             const sha256 = scanDetails.fileSHA256 || scanDetails.fileSha256 || scanDetails.fileSHA1 || scanDetails.fileSha1;
-            if (!sha256) return 'N/A';
-            // Display truncated but allow copying full hash
-            return `<span title="Click to copy full hash" style="cursor: pointer; font-family: monospace; font-size: 0.85rem; max-width: 140px; display: inline-block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: middle;" onclick="navigator.clipboard.writeText('${sha256}').then(() => {this.title='Copied!'; setTimeout(() => this.title='Click to copy full hash', 2000);})">${sha256}</span>`;
+            if (!sha256) return '<span style="color: #9ca3af;">N/A</span>';
+            // Display first 8 chars for readability
+            const shortHash = sha256.substring(0, 8) + '...';
+            return `<span title="${sha256}&#10;Click to copy full hash" style="cursor: pointer; font-family: monospace; font-size: 0.8rem; color: #6b7280;" onclick="navigator.clipboard.writeText('${sha256}').then(() => {this.textContent='Copied!'; setTimeout(() => this.textContent='${shortHash}', 1500);})">${shortHash}</span>`;
+        }
+
+        function getScanFilename(filename) {
+            if (!filename) return '<span style="color: #9ca3af;">N/A</span>';
+            const maxLength = 40;
+            if (filename.length <= maxLength) {
+                return `<span style="font-size: 0.8rem; color: #374151;" title="${filename}">${filename}</span>`;
+            }
+            // Truncate and add ellipsis
+            const shortName = filename.substring(0, maxLength) + '...';
+            return `<span title="${filename}&#10;Click to copy full filename" style="cursor: pointer; font-size: 0.8rem; color: #374151;" onclick="navigator.clipboard.writeText('${filename}').then(() => {const orig=this.textContent; this.textContent='Copied!'; setTimeout(() => this.textContent=orig, 1500);})">${shortName}</span>`;
         }
 
         function loadScanResults(filter = 'all') {
@@ -394,8 +432,8 @@
                                     ${getScanStatusText(scan)}
                                 </div>
                             </div>
-                            <div class="scan-filename">${scan.filename}</div>
-                            <div>${formatFileSize(scan.size)}</div>
+                            <div class="scan-filename">${getScanFilename(scan.filename)}</div>
+                            <div style="font-size: 0.8rem;">${formatFileSize(scan.size)}</div>
                             <div class="action-badge" title="${scan.action}">
                                 ${scan.action}
                             </div>
@@ -414,6 +452,11 @@
                                     ${getScanMethod(scan.tags)}
                                 </span>
                             </div>
+                            <div title="${scan.scannerSource || 'SaaS SDK'}" style="white-space: pre-line;">
+                                <span style="font-size: 0.8rem; color: #6b7280; display: block; white-space: pre-line;">
+                                    ${(scan.scannerSource || 'SaaS SDK').startsWith('External') ? scan.scannerSource : 'SaaS SDK'}
+                                </span>
+                            </div>
                             <div>
                                 ${getFileHash(scan.scanDetails)}
                             </div>
@@ -422,7 +465,7 @@
                                     <span class="scan-tag">${tag}</span>
                                 `).join('')}
                             </div>
-                            <div style="font-size: 0.875rem;">${new Date(scan.timestamp).toLocaleString()}</div>
+                            <div style="font-size: 0.8rem;">${new Date(scan.timestamp).toLocaleString()}</div>
                         </div>
                     `).join('');
             })

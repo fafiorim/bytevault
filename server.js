@@ -28,6 +28,9 @@ let systemConfig = {
     securityMode: process.env.SECURITY_MODE || 'logOnly', // 'prevent', 'logOnly', or 'disabled'
     scanMethod: process.env.SCAN_METHOD || 'buffer', // 'buffer' or 'file'
     scannerUrl: process.env.SCANNER_URL || 'http://localhost:3001', // Scanner service URL
+    cloudApiKey: process.env.FSS_API_KEY || '', // Cloud One API Key for local scanner
+    externalScannerAddr: process.env.SCANNER_EXTERNAL_ADDR || '', // External gRPC scanner address (e.g., "10.10.21.201:50051")
+    externalScannerTLS: process.env.SCANNER_USE_TLS === 'true', // Use TLS for external scanner
     digestEnabled: process.env.DIGEST_ENABLED !== 'false', // true or false (default: true)
     pmlEnabled: process.env.PML_ENABLED === 'true', // Predictive Machine Learning (default: false)
     spnFeedbackEnabled: process.env.SPN_FEEDBACK_ENABLED === 'true', // SPN Feedback (default: false)
@@ -139,7 +142,8 @@ app.post('/api/upload', (req, res, next) => {
                                 securityMode: systemConfig.securityMode,
                                 action: 'Uploaded without scanning',
                                 fileStatus: 'Saved',
-                                uploadedBy: req.user.username
+                                uploadedBy: req.user.username,
+                                scannerSource: systemConfig.externalScannerAddr ? `External\n${systemConfig.externalScannerAddr}` : 'SaaS SDK'
                             };
                             
                             storeScanResult(scanRecord);
@@ -214,7 +218,8 @@ app.post('/api/upload', (req, res, next) => {
                                     'Scanned and verified safe',
                                 fileStatus: isMalwareFound && systemConfig.securityMode === 'prevent' ? 'Deleted' : 'Saved',
                                 uploadedBy: req.user.username,
-                                scanDetails: scanResult
+                                scanDetails: scanResult,
+                                scannerSource: systemConfig.externalScannerAddr ? `External\n${systemConfig.externalScannerAddr}` : 'SaaS SDK'
                             };
                             
                             if (isMalwareFound) {
@@ -344,8 +349,10 @@ app.get('/api/config', combinedAuth, (req, res) => {
     });
 });
 
-app.post('/api/config', combinedAuth, adminAuth, (req, res) => {
-    const { securityMode, scanMethod, scannerUrl, digestEnabled, pmlEnabled, spnFeedbackEnabled, verboseEnabled, activeContentEnabled } = req.body;
+app.post('/api/config', combinedAuth, adminAuth, async (req, res) => {
+    const { securityMode, scanMethod, scannerUrl, cloudApiKey, externalScannerAddr, externalScannerTLS, digestEnabled, pmlEnabled, spnFeedbackEnabled, verboseEnabled, activeContentEnabled } = req.body;
+    
+    let needsScannerRestart = false;
     
     if (securityMode && ['prevent', 'logOnly', 'disabled'].includes(securityMode)) {
         systemConfig.securityMode = securityMode;
@@ -362,6 +369,29 @@ app.post('/api/config', combinedAuth, adminAuth, (req, res) => {
             systemConfig.scannerUrl = scannerUrl.replace(/\/$/, ''); // Remove trailing slash
         } catch (e) {
             return res.status(400).json({ error: 'Invalid scanner URL format' });
+        }
+    }
+    
+    // Handle SaaS SDK API Key configuration
+    if (typeof cloudApiKey === 'string') {
+        if (systemConfig.cloudApiKey !== cloudApiKey) {
+            systemConfig.cloudApiKey = cloudApiKey.trim();
+            needsScannerRestart = true;
+        }
+    }
+    
+    // Handle external scanner configuration
+    if (typeof externalScannerAddr === 'string') {
+        if (systemConfig.externalScannerAddr !== externalScannerAddr) {
+            systemConfig.externalScannerAddr = externalScannerAddr.trim();
+            needsScannerRestart = true;
+        }
+    }
+    
+    if (typeof externalScannerTLS === 'boolean') {
+        if (systemConfig.externalScannerTLS !== externalScannerTLS) {
+            systemConfig.externalScannerTLS = externalScannerTLS;
+            needsScannerRestart = true;
         }
     }
     
@@ -385,7 +415,138 @@ app.post('/api/config', combinedAuth, adminAuth, (req, res) => {
         systemConfig.activeContentEnabled = activeContentEnabled;
     }
     
+    // If external scanner config changed, restart scanner process
+    if (needsScannerRestart) {
+        const { spawn } = require('child_process');
+        
+        // Kill existing scanner process (if any)
+        try {
+            require('child_process').execSync('pkill -f "./scanner"');
+        } catch (e) {
+            // Process might not be running
+        }
+        
+        // Start new scanner with updated environment
+        const scannerEnv = {
+            ...process.env,
+            FSS_API_KEY: systemConfig.cloudApiKey,
+            SCANNER_EXTERNAL_ADDR: systemConfig.externalScannerAddr,
+            SCANNER_USE_TLS: systemConfig.externalScannerTLS.toString()
+        };
+        
+        const scanner = spawn('./scanner', [], {
+            env: scannerEnv,
+            detached: true,
+            stdio: 'ignore'
+        });
+        scanner.unref();
+        
+        // Wait a moment for scanner to start
+        await new Promise(resolve => setTimeout(resolve, 2000));
+    }
+    
     res.json({ message: 'Configuration updated', config: systemConfig });
+});
+
+// Test external scanner connection
+app.post('/api/test-scanner', combinedAuth, adminAuth, async (req, res) => {
+    const { externalScannerAddr, externalScannerTLS } = req.body;
+    
+    if (!externalScannerAddr || typeof externalScannerAddr !== 'string') {
+        return res.status(400).json({ 
+            success: false, 
+            message: 'External scanner address is required' 
+        });
+    }
+    
+    // Validate address format (host:port)
+    const addrRegex = /^[\w\.-]+:\d+$/;
+    if (!addrRegex.test(externalScannerAddr)) {
+        return res.status(400).json({ 
+            success: false, 
+            message: 'Invalid address format. Use host:port (e.g., 10.10.21.201:50051)' 
+        });
+    }
+    
+    try {
+        // Try to connect to the scanner by making a health check request
+        // We'll spawn a temporary scanner process to test the connection
+        const { spawn } = require('child_process');
+        const testEnv = {
+            ...process.env,
+            SCANNER_EXTERNAL_ADDR: externalScannerAddr,
+            SCANNER_USE_TLS: (externalScannerTLS === true).toString(),
+            FSS_API_KEY: '' // Clear API key for external scanner test
+        };
+        
+        // Create a test by checking if we can reach the scanner's health endpoint
+        // For gRPC scanners, we'll try to initialize a client
+        const testProcess = spawn('./scanner', [], {
+            env: testEnv,
+            timeout: 5000
+        });
+        
+        let output = '';
+        let errorOutput = '';
+        
+        testProcess.stdout.on('data', (data) => {
+            output += data.toString();
+        });
+        
+        testProcess.stderr.on('data', (data) => {
+            errorOutput += data.toString();
+        });
+        
+        const testResult = await new Promise((resolve) => {
+            const timeout = setTimeout(() => {
+                testProcess.kill();
+                resolve({ success: false, message: 'Connection timeout after 5 seconds' });
+            }, 5000);
+            
+            testProcess.on('error', (err) => {
+                clearTimeout(timeout);
+                resolve({ success: false, message: `Connection error: ${err.message}` });
+            });
+            
+            testProcess.on('exit', (code) => {
+                clearTimeout(timeout);
+                
+                // Check if connection was successful by looking at logs
+                if (output.includes('Scanner started in External Scanner mode') || 
+                    output.includes('Scanner Service Starting')) {
+                    resolve({ 
+                        success: true, 
+                        message: `Successfully connected to external scanner at ${externalScannerAddr}` 
+                    });
+                } else if (errorOutput.includes('connection refused') || 
+                           errorOutput.includes('no such host') ||
+                           errorOutput.includes('timeout')) {
+                    resolve({ 
+                        success: false, 
+                        message: `Cannot reach scanner at ${externalScannerAddr}. Check network connectivity.` 
+                    });
+                } else if (errorOutput) {
+                    resolve({ 
+                        success: false, 
+                        message: `Connection error: ${errorOutput.substring(0, 200)}` 
+                    });
+                } else {
+                    resolve({ 
+                        success: true, 
+                        message: `Scanner process started successfully for ${externalScannerAddr}` 
+                    });
+                }
+            });
+        });
+        
+        res.json(testResult);
+        
+    } catch (error) {
+        res.status(500).json({ 
+            success: false, 
+            message: `Test failed: ${error.message}` 
+        });
+    }
 });
 
 app.get('/api/health', basicAuth, async (req, res) => {

@@ -12,6 +12,7 @@ FinGuard is a specialized malware scanner designed for financial institutions, l
 ## Features
 
 ### Core Capabilities
+- **Dual scanner modes** - Cloud API or on-premise gRPC scanner (Kubernetes Vision One)
 - **Real-time malware scanning** using TrendAI File Security API
 - **Web interface** for file management and monitoring
 - **RESTful API** with Basic Authentication
@@ -84,7 +85,11 @@ cd finguard
 
 # Build the Docker image
 docker build -t finguard:latest .
+```
 
+### Running with Cloud Scanner (Default)
+
+```bash
 # Set your TrendAI File Security API key
 export FSS_API_KEY=your_api_key_here
 
@@ -97,6 +102,22 @@ docker run -d \
   --name finguard \
   finguard:latest
 ```
+
+### Running with External Scanner (Kubernetes Vision One)
+
+```bash
+# Run with external gRPC scanner (no API key needed)
+docker run -d \
+  -p 3000:3000 \
+  -p 3443:3443 \
+  -e SCANNER_EXTERNAL_ADDR=10.10.21.201:50051 \
+  -e SCANNER_USE_TLS=false \
+  -e SECURITY_MODE="logOnly" \
+  --name finguard \
+  finguard:latest
+```
+
+> **Note**: See [EXTERNAL_SCANNER.md](EXTERNAL_SCANNER.md) for detailed external scanner configuration guide.
 
 ### Access the Application
 
@@ -113,6 +134,22 @@ docker run -d \
 ## Scanner Configuration
 
 FinGuard provides granular control over scanner behavior through the configuration page (admin access required).
+
+### Scanner Modes
+
+**Cloud Scanner Mode (Default)**
+- Uses Trend Micro Cloud One File Security API
+- Requires FSS_API_KEY
+- Protocol: HTTP REST API
+- Global threat intelligence network
+
+**External Scanner Mode (Optional)**
+- Connects to on-premise Vision One File Security
+- No API key required
+- Protocol: gRPC
+- Example: Kubernetes deployment at 10.10.21.201:50051
+- Configurable via Web UI or environment variables
+- Built-in connection test to verify scanner accessibility
 
 ### Scan Methods
 

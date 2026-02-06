@@ -1,6 +1,6 @@
 module bytevault-scanner
 
-go 1.24.12
+go 1.23
 
 require github.com/trendmicro/tm-v1-fs-golang-sdk v1.7.0
 

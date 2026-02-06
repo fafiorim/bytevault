@@ -52,11 +52,8 @@ func main() {
 	// Get configuration from environment variables
 	apiKey := os.Getenv("FSS_API_KEY")
 	region := getEnv("FSS_REGION", "us-1")
-
-	// Validate required environment variables
-	if apiKey == "" {
-		log.Fatal("FSS_API_KEY environment variable must be set")
-	}
+	externalAddr := os.Getenv("SCANNER_EXTERNAL_ADDR")
+	useTLS := os.Getenv("SCANNER_USE_TLS") == "true"
 
 	// Get custom tags
 	customTags := getCustomTags()
@@ -72,14 +69,46 @@ func main() {
 	// Log startup configuration
 	log.Printf("Scanner Service Starting")
 	log.Printf("Configuration:")
-	log.Printf("- Region: %s", region)
-	log.Printf("- Custom Tags: %v", customTags)
 
-	// Create AMaaS client
-	client, err := amaasclient.NewClient(apiKey, region)
-	if err != nil {
-		log.Fatalf("Failed to create AMaaS client: %v", err)
+	// Create AMaaS client - both modes use the SDK client interface
+	var client *amaasclient.AmaasClient
+	var endpoint string
+
+	if externalAddr != "" {
+		// External gRPC scanner mode
+		log.Printf("- Mode: External Scanner (gRPC)")
+		log.Printf("- Scanner Address: %s", externalAddr)
+		log.Printf("- TLS: %v", useTLS)
+		log.Printf("- Custom Tags: %v", customTags)
+		endpoint = externalAddr
+
+		var err error
+		client, err = amaasclient.NewClientInternal("", externalAddr, useTLS, "")
+		if err != nil {
+			log.Fatalf("Failed to create external scanner client: %v", err)
+		}
+	} else {
+		// SaaS SDK mode (default)
+		if apiKey == "" {
+			log.Fatal("FSS_API_KEY must be set when not using external scanner")
+		}
+		log.Printf("- Mode: SaaS SDK Scanner")
+		log.Printf("- Region: %s", region)
+		log.Printf("- Custom Tags: %v", customTags)
+		endpoint = region
+
+		var err error
+		client, err = amaasclient.NewClient(apiKey, region)
+		if err != nil {
+			log.Fatalf("Failed to create SaaS SDK scanner client: %v", err)
+		}
 	}
+
+	startHTTPServer(client, customTags, endpoint)
+}
+
+// startHTTPServer starts the HTTP server with the given client
+func startHTTPServer(client *amaasclient.AmaasClient, customTags []string, endpoint string) {
 
 	// Enable digest calculation to get file hashes (SHA1, SHA256) for audit purposes
 	// Note: Digest is disabled by default. We enable it for security auditing.
@@ -273,7 +302,7 @@ func main() {
 			Status:      status,
 			Timestamp:   time.Now().Format(time.RFC3339),
 			CustomTags:  customTags,
-			APIEndpoint: region,
+			APIEndpoint: endpoint,
 		}
 
 		w.Header().Set("Content-Type", "application/json")
